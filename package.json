@@ -1,6 +1,6 @@
 {
   "name": "kaihei-radio",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "开黑电台 (Kaihei Radio) - game voice chat with channels & screen sharing (WebRTC mesh + Socket.IO signaling)",
   "main": "desktop/main.js",
   "type": "module",
