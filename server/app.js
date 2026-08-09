@@ -11,6 +11,10 @@ import { logger } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// 版本号（供客户端“关于”面板显示，读自 VERSION 单一来源）
+let version = '0.0.0';
+try { version = readFileSync(join(__dirname, '..', 'VERSION'), 'utf8').trim(); } catch { /* 快照/打包缺失时用默认值 */ }
+
 /**
  * 启动开黑电台服务器（HTTP/Socket.IO + 静态客户端）
  * @param {object} opts
@@ -41,7 +45,7 @@ export async function startKaiheiServer(opts = {}) {
 
   // 客户端拉取 ICE 配置
   app.get('/api/config', (_req, res) => {
-    res.json({ iceServers, maxPeersPerChannel: 8 });
+    res.json({ iceServers, maxPeersPerChannel: 8, version });
   });
 
   const rooms = new RoomManager();

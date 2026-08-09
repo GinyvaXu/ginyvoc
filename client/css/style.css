@@ -272,6 +272,7 @@ kbd {
   justify-content: center;
   z-index: 50;
 }
+.modal[hidden] { display: none !important; }
 .modal-card {
   width: 380px;
   background: var(--panel);

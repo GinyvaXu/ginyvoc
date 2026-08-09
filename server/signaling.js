@@ -30,7 +30,7 @@ export function setupSignaling(io, rooms) {
       ack?.({ roomId: res.room.id, roomState: rooms.serialize(res.room) });
     });
 
-    socket.on('room:leave', (ack) => {
+    socket.on('room:leave', (_payload, ack) => {
       leaveRoom(socket);
       ack?.({ ok: true });
     });
@@ -53,7 +53,7 @@ export function setupSignaling(io, rooms) {
       ack?.({ channelId, peers });
     });
 
-    socket.on('channel:leave', (ack) => {
+    socket.on('channel:leave', (_payload, ack) => {
       const room = rooms.rooms.get(socket.data.roomId);
       if (room) {
         const u = rooms.leaveChannel(room, socket.id);

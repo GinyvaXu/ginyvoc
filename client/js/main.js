@@ -1,4 +1,4 @@
-// main.js — 应用主控制器
+// main.js — 应用主控制器（含顶部菜单栏统筹）
 import { createSignaling } from './signaling.js';
 import { AudioEngine } from './audio.js';
 import { PeerMesh } from './webrtc.js';
@@ -71,6 +71,7 @@ async function boot() {
   wireSettings();
   wireChat();
   wirePtt();
+  wireMenu();
   window.__kaiheiBoot = true;
   console.log('[kaihei] boot done');
 }
@@ -91,7 +92,7 @@ function wireLobby() {
     saveName();
     const roomId = ui.$('#input-room').value.trim().toUpperCase();
     if (!/^[A-Z0-9]{4,6}$/.test(roomId)) {
-      showLobbyError('房间号格式不正确（5 位字母数字）');
+      showLobbyError('房间号格式不正确（4-6 位字母数字）');
       return;
     }
     const res = await signal.joinRoom(roomId, getUsername());
@@ -105,21 +106,8 @@ function wireLobby() {
     if (e.key === 'Enter') ui.$('#btn-join').click();
   });
 
-  ui.$('#btn-leave').addEventListener('click', async () => {
-    await leaveChannel();
-    await signal.leaveRoom();
-    resetApp();
-  });
-
-  ui.$('#btn-copy-link').addEventListener('click', async () => {
-    const url = `${location.origin}/?room=${state.roomId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      ui.toast('邀请链接已复制');
-    } catch {
-      ui.toast(`邀请链接: ${url}`);
-    }
-  });
+  ui.$('#btn-leave').addEventListener('click', leaveRoom);
+  ui.$('#btn-copy-link').addEventListener('click', copyInviteLink);
 }
 
 function getUsername() {
@@ -141,6 +129,7 @@ function handleRoomResponse(res) {
   ui.screen('app');
   setConnStatus(true);
   onRoomState(res.roomState);
+  updateMenuUI();
   ui.toast(`已进入房间 ${res.roomId}，点击左侧频道加入语音`);
 }
 
@@ -307,38 +296,63 @@ function syncModeWithAudio() {
   applyVoiceState();
 }
 
-// ---------- 控制栏 ----------
+// ---------- 公共控制（底部控制栏与顶部菜单共用）----------
 const MODE_LABELS = { vad: 'VAD', ptt: 'PTT', always: '自由麦' };
 
+function toggleMic() {
+  if (!micReady) { initMicAsync(); return; }
+  state.mic = !state.mic;
+  applyVoiceState();
+  updateControlUI();
+  signal.updateMedia({ mic: state.mic });
+}
+
+function toggleDeafen() {
+  state.deaf = !state.deaf;
+  applyVoiceState();
+  for (const el of peerAudio.values()) el.muted = state.deaf;
+  updateControlUI();
+  signal.updateMedia({ deaf: state.deaf });
+}
+
+function setMode(mode) {
+  if (!['vad', 'ptt', 'always'].includes(mode) || mode === state.mode) return;
+  state.mode = mode;
+  syncModeWithAudio();
+  updateControlUI();
+}
+
+function cycleMode() {
+  const order = ['vad', 'ptt', 'always'];
+  setMode(order[(order.indexOf(state.mode) + 1) % order.length]);
+}
+
+function toggleScreen() {
+  if (!state.screen) startScreenShare();
+  else stopScreenShare();
+}
+
+async function leaveRoom() {
+  await leaveChannel();
+  await signal.leaveRoom();
+  resetApp();
+}
+
+async function copyInviteLink() {
+  const url = `${location.origin}/?room=${state.roomId}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    ui.toast('邀请链接已复制');
+  } catch {
+    ui.toast(`邀请链接: ${url}`);
+  }
+}
+
 function wireControls() {
-  ui.$('#btn-mic').addEventListener('click', () => {
-    if (!micReady) { initMicAsync(); return; }
-    state.mic = !state.mic;
-    applyVoiceState();
-    updateControlUI();
-    signal.updateMedia({ mic: state.mic });
-  });
-
-  ui.$('#btn-deafen').addEventListener('click', () => {
-    state.deaf = !state.deaf;
-    applyVoiceState();
-    for (const el of peerAudio.values()) el.muted = state.deaf;
-    updateControlUI();
-    signal.updateMedia({ deaf: state.deaf });
-  });
-
-  ui.$('#btn-mode').addEventListener('click', () => {
-    const order = ['vad', 'ptt', 'always'];
-    state.mode = order[(order.indexOf(state.mode) + 1) % order.length];
-    syncModeWithAudio();
-    updateControlUI();
-  });
-
-  ui.$('#btn-screen').addEventListener('click', () => {
-    if (!state.screen) startScreenShare();
-    else stopScreenShare();
-  });
-
+  ui.$('#btn-mic').addEventListener('click', toggleMic);
+  ui.$('#btn-deafen').addEventListener('click', toggleDeafen);
+  ui.$('#btn-mode').addEventListener('click', cycleMode);
+  ui.$('#btn-screen').addEventListener('click', toggleScreen);
   ui.$('#btn-settings').addEventListener('click', openSettings);
   ui.$('#btn-settings-close').addEventListener('click', saveSettings);
 }
@@ -360,6 +374,113 @@ function updateControlUI() {
   const screenBtn = ui.$('#btn-screen');
   screenBtn.classList.toggle('active', state.screen);
   screenBtn.innerHTML = `🖥️<span>${state.screen ? '停止共享' : '共享屏幕'}</span>`;
+
+  updateMenuUI();
+}
+
+// ---------- 顶部菜单栏 ----------
+const MENU_ACTIONS = {
+  'set-mode': (mode) => setMode(mode),
+  'toggle-mic': () => toggleMic(),
+  'toggle-deafen': () => toggleDeafen(),
+  'capture-ptt': () => startPttCapture(),
+  'toggle-screen': () => toggleScreen(),
+  'copy-link': () => copyInviteLink(),
+  'leave-room': () => leaveRoom(),
+  'open-settings': () => openSettings(),
+  'open-shortcuts': () => openShortcuts(),
+  'open-about': () => openAbout(),
+};
+
+function wireMenu() {
+  document.querySelectorAll('.menu').forEach((menu) => {
+    menu.querySelector('.menu-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wasOpen = menu.classList.contains('open');
+      closeMenus();
+      if (!wasOpen) {
+        menu.classList.add('open');
+        if (menu.dataset.menu === 'settings') populateDevices(ui.$('#menu-device'));
+      }
+      updateMenuUI();
+    });
+  });
+  // 点击菜单外部关闭
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menu')) closeMenus();
+  });
+
+  // 菜单项动作分发
+  document.querySelectorAll('.menu-item[data-action]').forEach((item) => {
+    item.addEventListener('click', () => {
+      const fn = MENU_ACTIONS[item.dataset.action];
+      if (fn) fn(item.dataset.mode);
+      closeMenus();
+    });
+  });
+
+  // 设置下拉：即时生效并同步完整设置弹窗
+  ui.$('#menu-vad').addEventListener('input', () => {
+    settings.vad = Number(ui.$('#menu-vad').value);
+    audio?.setVadThreshold(settings.vad);
+    ui.$('#menu-vad-value').textContent = settings.vad.toFixed(3);
+    ui.$('#set-vad').value = settings.vad;
+    ui.$('#vad-value').textContent = settings.vad.toFixed(3);
+  });
+  ui.$('#menu-ns').addEventListener('change', () => {
+    settings.noiseSuppression = ui.$('#menu-ns').checked;
+    ui.$('#set-ns').checked = settings.noiseSuppression;
+    applyAudioDevice();
+  });
+  ui.$('#menu-device').addEventListener('change', () => {
+    settings.deviceId = ui.$('#menu-device').value;
+    ui.$('#set-device').value = settings.deviceId;
+    applyAudioDevice();
+  });
+
+  ui.$('#btn-shortcuts-close').addEventListener('click', () => { ui.$('#modal-shortcuts').hidden = true; });
+  ui.$('#btn-about-close').addEventListener('click', () => { ui.$('#modal-about').hidden = true; });
+}
+
+function closeMenus() {
+  document.querySelectorAll('.menu.open').forEach((m) => m.classList.remove('open'));
+}
+
+function updateMenuUI() {
+  // 说话模式勾选
+  document.querySelectorAll('.menu-item[data-action="set-mode"]').forEach((it) => {
+    it.classList.toggle('checked', it.dataset.mode === state.mode);
+  });
+  // 麦克风
+  const micOn = state.mic && !state.deaf;
+  ui.$('#mi-mic').textContent = micOn ? '🎤' : '🔇';
+  const micItem = ui.$('#menu-mic-state');
+  micItem.textContent = state.mic ? '开' : '静音';
+  micItem.parentElement.classList.toggle('off', !state.mic);
+  // 闭麦
+  const deafItem = ui.$('#menu-deafen-state');
+  deafItem.textContent = state.deaf ? '开' : '关';
+  deafItem.parentElement.classList.toggle('on', state.deaf);
+  // PTT 按键 / 屏幕 / 房间
+  ui.$('#menu-ptt-key').textContent = prettyKey(state.pttKey);
+  ui.$('#menu-screen-text').textContent = state.screen ? '停止共享' : '共享屏幕';
+  ui.$('#menu-screen-state').textContent = state.screen ? '共享中' : '未共享';
+  ui.$('#menu-screen-tip').textContent = state.screen ? '点击菜单项可停止共享' : '可共享整个屏幕 / 窗口 / 标签页';
+  ui.$('#menu-room-code').textContent = state.roomId || '--';
+  // 设置
+  ui.$('#menu-ns').checked = settings.noiseSuppression;
+  ui.$('#menu-vad').value = settings.vad;
+  ui.$('#menu-vad-value').textContent = settings.vad.toFixed(3);
+  ui.$('#menu-device').value = settings.deviceId;
+}
+
+function openShortcuts() {
+  ui.$('#modal-shortcuts').hidden = false;
+}
+
+function openAbout() {
+  ui.$('#modal-about').hidden = false;
+  if (config?.version) ui.$('#about-version').textContent = config.version;
 }
 
 // ---------- PTT ----------
@@ -371,6 +492,7 @@ function wirePtt() {
       setPttKey(e.code);
       return;
     }
+    if (e.code === 'Escape') { closeMenus(); return; }
     if (e.code === state.pttKey && state.mode === 'ptt' && e.target.tagName !== 'INPUT') {
       pttDown = true;
       applyVoiceState();
@@ -392,6 +514,12 @@ function wirePtt() {
   });
 }
 
+function startPttCapture() {
+  pttCapturing = true;
+  ui.$('#ptt-key-label').textContent = '按任意键…';
+  ui.$('#menu-ptt-key').textContent = '按任意键…';
+}
+
 function setPttKey(code) {
   state.pttKey = code;
   settings.pttKey = code;
@@ -406,6 +534,7 @@ function prettyKey(code) {
 
 function updatePttKeyLabel() {
   ui.$('#ptt-key-label').textContent = `(${prettyKey(state.pttKey)})`;
+  ui.$('#menu-ptt-key').textContent = prettyKey(state.pttKey);
 }
 
 // ---------- 屏幕共享 ----------
@@ -446,18 +575,7 @@ function wireChat() {
 }
 
 // ---------- 设置 ----------
-async function openSettings() {
-  const modal = ui.$('#modal-settings');
-  modal.hidden = false;
-  document.querySelectorAll('input[name="mode"]').forEach((r) => {
-    r.checked = r.value === state.mode;
-  });
-  ui.$('#set-ns').checked = settings.noiseSuppression;
-  ui.$('#set-vad').value = settings.vad;
-  ui.$('#vad-value').textContent = settings.vad.toFixed(3);
-  updatePttKeyLabel();
-
-  const select = ui.$('#set-device');
+async function populateDevices(select) {
   select.innerHTML = '';
   try {
     const devices = await audio?.refreshDevices() ?? [];
@@ -469,6 +587,30 @@ async function openSettings() {
     }
   } catch { /* 权限未授予时为空 */ }
   select.value = settings.deviceId;
+}
+
+async function openSettings() {
+  const modal = ui.$('#modal-settings');
+  modal.hidden = false;
+  document.querySelectorAll('input[name="mode"]').forEach((r) => {
+    r.checked = r.value === state.mode;
+  });
+  ui.$('#set-ns').checked = settings.noiseSuppression;
+  ui.$('#set-vad').value = settings.vad;
+  ui.$('#vad-value').textContent = settings.vad.toFixed(3);
+  updatePttKeyLabel();
+  await populateDevices(ui.$('#set-device'));
+}
+
+function applyAudioDevice() {
+  if (audio) {
+    audio.init({
+      deviceId: settings.deviceId,
+      noiseSuppression: settings.noiseSuppression,
+    }).catch(() => ui.toast('音频设备切换失败'));
+  }
+  syncModeWithAudio();
+  updateControlUI();
 }
 
 function saveSettings() {
@@ -484,14 +626,7 @@ function saveSettings() {
   state.pttKey = settings.pttKey;
 
   audio?.setVadThreshold(settings.vad);
-  if (audio) {
-    audio.init({
-      deviceId: settings.deviceId,
-      noiseSuppression: settings.noiseSuppression,
-    }).catch(() => ui.toast('音频设备切换失败'));
-  }
-  syncModeWithAudio();
-  updateControlUI();
+  applyAudioDevice();
 }
 
 function wireSettings() {
@@ -499,10 +634,7 @@ function wireSettings() {
     ui.$('#vad-value').textContent = Number(ui.$('#set-vad').value).toFixed(3);
   });
 
-  ui.$('#btn-ptt-key').addEventListener('click', () => {
-    pttCapturing = true;
-    ui.$('#ptt-key-label').textContent = '按任意键…';
-  });
+  ui.$('#btn-ptt-key').addEventListener('click', startPttCapture);
 }
 
 // 进入页支持 ?room=XXXX 邀请链接
@@ -531,15 +663,3 @@ boot().catch((e) => {
   el.textContent = `启动失败: ${e.message}`;
   el.hidden = false;
 });
-
-
-
-
-
-
-
-
-
-
-
-

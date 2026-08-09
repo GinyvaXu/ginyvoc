@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>开黑电台 · 联机语音</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/menu.css" />
 </head>
 <body>
   <!-- 进入页 -->
@@ -34,12 +35,74 @@
     <header class="topbar">
       <div class="room-info">
         <span class="room-name">📻 开黑电台</span>
-        <span class="room-code" title="点击复制房间号">房间号: <b id="room-code">--</b></span>
+        <span id="room-code" class="room-code" title="点击复制房间号">房间号 <b>--</b></span>
         <span id="conn-status" class="conn-status ok">● 已连接</span>
       </div>
+
+      <!-- 顶部菜单栏：统筹所有功能 -->
+      <nav class="menubar" id="menubar">
+        <div class="menu" data-menu="voice">
+          <button class="menu-btn" type="button">语音 <span class="caret">▾</span></button>
+          <div class="menu-panel" id="menu-voice">
+            <div class="menu-group-title">说话模式</div>
+            <button class="menu-item" data-action="set-mode" data-mode="vad"><span class="mi">🎙️</span><span class="mi-text">语音检测 (VAD)</span><span class="mi-check">✓</span></button>
+            <button class="menu-item" data-action="set-mode" data-mode="ptt"><span class="mi">🎤</span><span class="mi-text">按键说话 (PTT)</span><span class="mi-check">✓</span></button>
+            <button class="menu-item" data-action="set-mode" data-mode="always"><span class="mi">🔊</span><span class="mi-text">自由麦</span><span class="mi-check">✓</span></button>
+            <div class="menu-sep"></div>
+            <button class="menu-item" data-action="toggle-mic"><span class="mi" id="mi-mic">🎤</span><span class="mi-text">麦克风</span><span class="mi-state" id="menu-mic-state">开</span></button>
+            <button class="menu-item" data-action="toggle-deafen"><span class="mi">😵</span><span class="mi-text">闭麦（不听他人）</span><span class="mi-state" id="menu-deafen-state">关</span></button>
+            <div class="menu-sep"></div>
+            <div class="menu-info-row">PTT 按键：<kbd id="menu-ptt-key">空格</kbd></div>
+            <button class="menu-item" data-action="capture-ptt"><span class="mi">⌨️</span><span class="mi-text">重新设置 PTT 按键</span></button>
+          </div>
+        </div>
+
+        <div class="menu" data-menu="screen">
+          <button class="menu-btn" type="button">屏幕 <span class="caret">▾</span></button>
+          <div class="menu-panel" id="menu-screen">
+            <button class="menu-item" data-action="toggle-screen"><span class="mi">🖥️</span><span class="mi-text" id="menu-screen-text">共享屏幕</span><span class="mi-state" id="menu-screen-state">未共享</span></button>
+            <div class="menu-sep"></div>
+            <div class="menu-info-row" id="menu-screen-tip">可共享整个屏幕 / 窗口 / 标签页</div>
+          </div>
+        </div>
+
+        <div class="menu" data-menu="room">
+          <button class="menu-btn" type="button">房间 <span class="caret">▾</span></button>
+          <div class="menu-panel" id="menu-room">
+            <div class="menu-info-row">房间号：<b id="menu-room-code">--</b></div>
+            <button class="menu-item" data-action="copy-link"><span class="mi">🔗</span><span class="mi-text">复制邀请链接</span></button>
+            <div class="menu-sep"></div>
+            <button class="menu-item danger" data-action="leave-room"><span class="mi">🚪</span><span class="mi-text">离开房间</span></button>
+          </div>
+        </div>
+
+        <div class="menu" data-menu="settings">
+          <button class="menu-btn" type="button">设置 <span class="caret">▾</span></button>
+          <div class="menu-panel menu-panel-wide" id="menu-settings">
+            <div class="menu-group-title">输入设备</div>
+            <select id="menu-device" class="menu-select"></select>
+            <div class="menu-group-title">VAD 灵敏度 <span id="menu-vad-value" class="dim">0.020</span></div>
+            <input id="menu-vad" class="menu-range" type="range" min="0.005" max="0.06" step="0.001" />
+            <label class="menu-check"><input id="menu-ns" type="checkbox" checked /> 降噪 / 回声消除</label>
+            <div class="menu-sep"></div>
+            <button class="menu-item" data-action="open-settings"><span class="mi">⚙️</span><span class="mi-text">完整设置窗口</span></button>
+          </div>
+        </div>
+
+        <div class="menu" data-menu="help">
+          <button class="menu-btn" type="button">帮助 <span class="caret">▾</span></button>
+          <div class="menu-panel" id="menu-help">
+            <button class="menu-item" data-action="open-shortcuts"><span class="mi">⌨️</span><span class="mi-text">快捷键说明</span></button>
+            <button class="menu-item" data-action="open-about"><span class="mi">📻</span><span class="mi-text">关于开黑电台</span></button>
+            <div class="menu-sep"></div>
+            <div class="menu-info-row">Debug 版日志已开启</div>
+          </div>
+        </div>
+      </nav>
+
       <div class="topbar-actions">
-        <button id="btn-copy-link" class="btn small">复制邀请链接</button>
-        <button id="btn-leave" class="btn small danger">离开房间</button>
+        <button id="btn-copy-link" class="btn small" title="复制邀请链接">🔗 邀请</button>
+        <button id="btn-leave" class="btn small danger" title="离开房间">离开</button>
       </div>
     </header>
 
@@ -53,7 +116,7 @@
         <section id="screen-grid" class="screen-grid"></section>
         <section class="channel-panel">
           <div class="channel-panel-head">
-            <span id="current-channel-name">未加入频道</span>
+            <span id="current-channel-name" class="title">未加入频道</span>
             <span id="channel-member-count" class="muted"></span>
           </div>
           <div id="member-list" class="member-list"></div>
@@ -83,10 +146,10 @@
     </footer>
   </section>
 
-  <!-- 设置弹窗 -->
+  <!-- 设置弹窗（完整版） -->
   <div id="modal-settings" class="modal" hidden>
     <div class="modal-card">
-      <h3>设置</h3>
+      <h3>⚙️ 完整设置</h3>
       <div class="field">
         <label>输入设备</label>
         <select id="set-device"></select>
@@ -112,6 +175,35 @@
       </div>
       <div class="modal-actions">
         <button id="btn-settings-close" class="btn">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快捷键说明 -->
+  <div id="modal-shortcuts" class="modal" hidden>
+    <div class="modal-card">
+      <h3>⌨️ 快捷键</h3>
+      <div class="shortcut-grid">
+        <div class="shortcut-row"><kbd>Space</kbd><span>PTT 模式下按住说话</span></div>
+        <div class="shortcut-row"><kbd>Esc</kbd><span>关闭菜单 / 取消按键捕获</span></div>
+      </div>
+      <p class="hint">其余功能请使用顶部菜单栏或底部控制栏。</p>
+      <div class="modal-actions">
+        <button id="btn-shortcuts-close" class="btn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 关于 -->
+  <div id="modal-about" class="modal" hidden>
+    <div class="modal-card about-card">
+      <div class="about-logo">📻</div>
+      <h3>开黑电台</h3>
+      <p class="dim">版本 <span id="about-version">--</span></p>
+      <p class="dim">联机游戏语音频道 · 屏幕共享 · 房间文字聊天</p>
+      <p class="dim">WebRTC mesh P2P · 服务器零媒体成本</p>
+      <div class="modal-actions">
+        <button id="btn-about-close" class="btn">关闭</button>
       </div>
     </div>
   </div>
