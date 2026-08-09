@@ -43,7 +43,7 @@ npm start
 ```bash
 npm install
 npm run icon            # 生成 assets 图标
-npm run dist:portable   # 构建便携版 → build\
+npm run dist:portable   # 构建便携版 → build\（构建前自动从 VERSION 同步版本号）
 npm run dist:installer  # 构建安装版 → build\
 npm run finalize        # 复制 exe 到 installer\
 ```
@@ -87,6 +87,7 @@ TURN_URL=turn:你的turn域名:3478 TURN_USER=xxx TURN_PASS=yyy npm start
 │   ├── make-certs.js        # 自签名 HTTPS 证书
 │   ├── smoke-test.mjs       # 信令冒烟测试（12 项断言）
 │   ├── gen-icon.mjs         # 生成图标
+│   ├── sync-version.mjs     # 从 VERSION 同步 package.json 版本号
 │   ├── export-electron.mjs  # 复制 exe 到 installer\
 │   └── export-debug.mjs     # 导出浏览器版自包含包（Debug）
 ├── docs/调研报告.md         # 现有软件与开源库调研
@@ -95,12 +96,20 @@ TURN_URL=turn:你的turn域名:3478 TURN_USER=xxx TURN_PASS=yyy npm start
 ├── build/                # 构建中间产物（electron-builder 输出，不入库）
 ├── installer/            # 交付：便携版/安装版 exe（不入库，走 Releases）
 ├── logs/                 # 桌面版开发运行日志（不入库）
-├── versions/             # 旧版本归档（本地保留，不入库）
+├── versions/             # 版本归档：vX.Y.Z/src 源码快照入库，dist/installer 不入库
 ├── 成品/                 # 浏览器版 Debug 导出包（不入库）
 ├── 中间产物/             # 证书等中间文件（不入库）
-├── VERSION               # 当前版本
-└── VERSIONING.md         # 版本管理规范
+├── VERSION               # 当前版本（唯一版本来源）
+├── VERSIONING.md         # 版本管理规范
+├── CHANGELOG.md          # 变更记录
+└── AGENTS.md             # 项目规则（Codex 自动读取）
 ```
+
+## 开发流程（分支与发布）
+
+- 分支模型：日常开发在 `develop`；`main` 只接受 `develop` 的合并（--no-ff），每个节点对应一个已发布版本
+- 版本号：只改 `VERSION` 文件，构建脚本自动同步；变更记录写 `CHANGELOG.md`
+- 完整发布流程与提交规范：见 `VERSIONING.md`
 
 ## 架构
 
