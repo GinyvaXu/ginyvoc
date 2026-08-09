@@ -3,6 +3,7 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, clipboard, session, dialog } from 'electron';
 import { dirname, join } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -53,6 +54,8 @@ async function bootstrap() {
   appUrl = `http://127.0.0.1:${port}`;
   logger.work(`服务器已启动: ${appUrl}`);
 
+  openDebugConsole(logDir);
+
   app.setAppUserModelId('com.kaihei.radio');
 
   await app.whenReady();
@@ -89,6 +92,49 @@ function resolveLogDir(isPackaged) {
   } catch {
     return join(app.getPath('userData'), 'logs');
   }
+}
+
+// Debug 控制台：打包版弹出一个窗口实时滚动显示 work/error 日志（开发模式直接看终端，不弹）
+function openDebugConsole(logDir) {
+  if (!app.isPackaged) return; // 开发模式日志已在终端可见
+  try {
+    const scriptPath = join(logDir, '_debug-console.ps1');
+    const ps = `$Host.UI.RawUI.WindowTitle = '开黑电台 Debug 控制台'
+Write-Host '=================================================='
+Write-Host '  开黑电台 Debug 控制台 - 实时日志'
+Write-Host ('  日志目录: ' + '${logDir}')
+Write-Host '  关闭本窗口不影响程序运行；退出程序后窗口自动失效'
+Write-Host '=================================================='
+$pos = @{}
+while ($true) {
+  Get-ChildItem -Path '${logDir}' -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object {
+    $f = $_
+    $len = $f.Length
+    if (-not $pos.ContainsKey($f.FullName)) { $pos[$f.FullName] = 0 }
+    if ($len -gt $pos[$f.FullName]) {
+      try {
+        $stream = [System.IO.File]::Open($f.FullName, 'Open', 'Read', 'ReadWrite')
+        $stream.Seek($pos[$f.FullName], 'Begin') | Out-Null
+        $reader = New-Object System.IO.StreamReader($stream)
+        $text = $reader.ReadToEnd()
+        $reader.Close()
+        $stream.Close()
+        if ($text) { Write-Host $text.TrimEnd([char]13, [char]10) }
+        $pos[$f.FullName] = $len
+      } catch { }
+    }
+  }
+  Start-Sleep -Milliseconds 500
+}`;
+    // PS 5.1 需带 BOM 才能正确读取中文
+    writeFileSync(scriptPath, '\ufeff' + ps, 'utf8');
+    // 以 logs 目录为 cwd 用相对文件名启动，避免项目路径中的 & 干扰命令行
+    const child = spawn('powershell.exe', ['-NoExit', '-ExecutionPolicy', 'Bypass', '-File', '_debug-console.ps1'], {
+      cwd: logDir,
+      stdio: 'ignore',
+    });
+    child.unref();
+  } catch { /* 控制台打不开不阻塞主程序 */ }
 }
 
 function createWindow() {
