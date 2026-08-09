@@ -1,9 +1,9 @@
-﻿// export-debug.mjs — 导出 Debug 版自包含包（无外部依赖）
-import { cpSync, mkdirSync, rmSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+// export-debug.mjs — 导出 Debug 版自包含包（无外部依赖）
+import { cpSync, mkdirSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = process.cwd();
-const version = 'v0.1';
+const version = 'v0.2';
 const outDir = join(root, '成品', `Debug版-${version}`);
 const serverDir = join(outDir, '开黑电台服务器');
 
@@ -38,7 +38,7 @@ writeFileSync(join(outDir, '启动开黑电台-Debug版.bat'), bat, 'utf8');
 const logBat = `@echo off\r\nchcp 65001 >nul\r\nif not exist "%~dp0logs" (\r\n  echo 还没有日志文件，请先运行"启动开黑电台-Debug版.bat"。\r\n  pause\r\n  exit /b\r\n)\r\nexplorer "%~dp0logs"\r\n`;
 writeFileSync(join(outDir, '查看日志.bat'), logBat, 'utf8');
 
-const readme = `【开黑电台 Debug 版 v0.1】
+const readme = `【开黑电台 Debug 版 v0.2】
 
 一、怎么启动
   双击"启动开黑电台-Debug版.bat"，会自动：

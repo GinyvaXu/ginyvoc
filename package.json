@@ -1,12 +1,19 @@
 {
   "name": "kaihei-radio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "开黑电台 (Kaihei Radio) - game voice chat with channels & screen sharing (WebRTC mesh + Socket.IO signaling)",
+  "main": "desktop/main.js",
   "type": "module",
   "private": true,
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "electron": "node node_modules/electron/cli.js desktop/main.js",
+    "icon": "node scripts/gen-icon.mjs",
+    "dist": "node node_modules/electron-builder/cli.js --win",
+    "dist:portable": "node node_modules/electron-builder/cli.js --win portable",
+    "dist:installer": "node node_modules/electron-builder/cli.js --win nsis",
+    "finalize": "node scripts/export-electron.mjs",
     "certs": "node scripts/make-certs.js",
     "test": "node scripts/smoke-test.mjs"
   },
@@ -18,6 +25,41 @@
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.kaihei.radio",
+    "productName": "开黑电台",
+    "copyright": "Copyright (c) 2026 Kaihei Radio",
+    "asar": true,
+    "directories": {
+      "output": "build",
+      "buildResources": "assets"
+    },
+    "files": [
+      "server/**/*",
+      "client/**/*",
+      "desktop/**/*",
+      "assets/**/*",
+      "VERSION"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "开黑电台-便携版-v${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "开黑电台-安装版-v${version}.exe"
+    }
   }
 }

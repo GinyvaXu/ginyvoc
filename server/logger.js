@@ -1,4 +1,4 @@
-﻿// logger.js — Debug 版日志：工作日志(work-日期.log) + 报错日志(error-日期.log)
+// logger.js — Debug 版日志：工作日志(work-日期.log) + 报错日志(error-日期.log)
 // 同步追加写盘，进程异常退出也不丢日志；日志目录可用 LOG_DIR 环境变量覆盖
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
