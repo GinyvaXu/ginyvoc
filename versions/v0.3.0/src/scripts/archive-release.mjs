@@ -35,6 +35,7 @@ function copyFilter(s) {
 }
 for (const name of readdirSync(root)) {
   if (EXCLUDE.has(name)) continue;
+  if (name.startsWith('_')) continue; // 构建临时文件（_dev_server.pid 等）不入快照
   cpSync(join(root, name), join(srcDir, name), { recursive: true, filter: copyFilter });
 }
 
