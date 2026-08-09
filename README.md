@@ -84,6 +84,7 @@ TURN_URL=turn:你的turn域名:3478 TURN_USER=xxx TURN_PASS=yyy npm start
 ```
 
 - **媒体面**：WebRTC mesh，每人每频道一条 P2P 连接；语音/屏幕直连，服务器零媒体成本。
+- 完整信令/媒体链路见 [docs/网络连接实现.md](docs/网络连接实现.md)。
 - **信令面**：Socket.IO 转发 SDP/ICE 与房间状态。
 - **扩容路径**：频道 >8 人时替换为 mediasoup/LiveKit SFU（见调研报告路线图）。
 
