@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>开黑电台 · 联机语音</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- 进入页 -->
+  <section id="screen-lobby" class="screen lobby">
+    <div class="lobby-card">
+      <div class="logo">📻 开黑电台</div>
+      <p class="tagline">联机游戏语音频道 · 屏幕共享</p>
+      <div class="field">
+        <label>昵称</label>
+        <input id="input-username" type="text" maxlength="16" placeholder="输入昵称" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>房间号（加入时填写）</label>
+        <input id="input-room" type="text" maxlength="5" placeholder="如：AB3K9" autocomplete="off" />
+      </div>
+      <div class="btn-row">
+        <button id="btn-create" class="btn primary">创建房间</button>
+        <button id="btn-join" class="btn">加入房间</button>
+      </div>
+      <div id="lobby-error" class="error" hidden></div>
+      <p class="hint">建议使用 Chrome / Edge。首次进入语音频道时浏览器会请求麦克风权限。</p>
+    </div>
+  </section>
+
+  <!-- 主界面 -->
+  <section id="screen-app" class="screen app" hidden>
+    <header class="topbar">
+      <div class="room-info">
+        <span class="room-name">📻 开黑电台</span>
+        <span class="room-code" title="点击复制房间号">房间号: <b id="room-code">--</b></span>
+        <span id="conn-status" class="conn-status ok">● 已连接</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="btn-copy-link" class="btn small">复制邀请链接</button>
+        <button id="btn-leave" class="btn small danger">离开房间</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-title">语音频道</div>
+        <div id="channel-list" class="channel-list"></div>
+      </aside>
+
+      <main class="content">
+        <section id="screen-grid" class="screen-grid"></section>
+        <section class="channel-panel">
+          <div class="channel-panel-head">
+            <span id="current-channel-name">未加入频道</span>
+            <span id="channel-member-count" class="muted"></span>
+          </div>
+          <div id="member-list" class="member-list"></div>
+        </section>
+      </main>
+
+      <aside class="chat">
+        <div class="chat-title">房间聊天</div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <form id="chat-form" class="chat-form">
+          <input id="chat-input" type="text" maxlength="500" placeholder="发送消息…" autocomplete="off" />
+        </form>
+      </aside>
+    </div>
+
+    <footer class="controlbar">
+      <div class="control-left">
+        <button id="btn-mic" class="ctrl-btn active" title="麦克风开关">🎤<span>麦克风</span></button>
+        <button id="btn-deafen" class="ctrl-btn" title="闭麦">🔇<span>闭麦</span></button>
+        <button id="btn-mode" class="ctrl-btn" title="说话模式">🎙️<span>VAD</span></button>
+        <span id="ptt-hint" class="ptt-hint" hidden>按住 <kbd>Space</kbd> 说话</span>
+      </div>
+      <div class="control-right">
+        <button id="btn-screen" class="ctrl-btn" title="共享屏幕">🖥️<span>共享屏幕</span></button>
+        <button id="btn-settings" class="ctrl-btn" title="设置">⚙️<span>设置</span></button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- 设置弹窗 -->
+  <div id="modal-settings" class="modal" hidden>
+    <div class="modal-card">
+      <h3>设置</h3>
+      <div class="field">
+        <label>输入设备</label>
+        <select id="set-device"></select>
+      </div>
+      <div class="field">
+        <label>说话模式</label>
+        <div class="radio-row">
+          <label><input type="radio" name="mode" value="vad" checked /> 语音检测 (VAD)</label>
+          <label><input type="radio" name="mode" value="ptt" /> 按键说话 (PTT)</label>
+          <label><input type="radio" name="mode" value="always" /> 自由麦</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>PTT 按键 <span id="ptt-key-label" class="muted"></span></label>
+        <button id="btn-ptt-key" class="btn small">点击设置按键</button>
+      </div>
+      <div class="field">
+        <label>VAD 灵敏度 <span id="vad-value" class="muted"></span></label>
+        <input id="set-vad" type="range" min="0.005" max="0.06" step="0.001" />
+      </div>
+      <div class="field">
+        <label><input id="set-ns" type="checkbox" checked /> 降噪 / 回声消除</label>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-settings-close" class="btn">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

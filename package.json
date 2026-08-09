@@ -1,0 +1,23 @@
+{
+  "name": "kaihei-radio",
+  "version": "0.1.0",
+  "description": "开黑电台 (Kaihei Radio) - game voice chat with channels & screen sharing (WebRTC mesh + Socket.IO signaling)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "certs": "node scripts/make-certs.js",
+    "test": "node scripts/smoke-test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
+  }
+}
