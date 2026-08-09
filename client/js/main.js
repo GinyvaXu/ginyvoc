@@ -40,6 +40,15 @@ window.addEventListener('error', (e) => {
   const el = ui.$('#lobby-error');
   el.textContent = `JS错误: ${e.message}`;
   el.hidden = false;
+  signal?.reportError({ message: e.message, stack: e.error?.stack, url: location.href });
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  signal?.reportError({
+    message: String(e.reason || 'Unknown rejection'),
+    stack: e.reason?.stack,
+    url: location.href,
+  });
 });
 
 async function boot() {

@@ -28,6 +28,7 @@ export function createSignaling(handlers) {
     sendSignal: (to, data) => socket.emit('signal', { to, data }),
     updateMedia: (patch) => emitAck('media:update', patch),
     sendChat: (text) => emitAck('chat:send', { text }),
+    reportError: (info) => socket.emit('client:error', info),
     id: () => socket.id,
   };
 }

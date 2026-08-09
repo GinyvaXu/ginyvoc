@@ -9,6 +9,7 @@ import express from 'express';
 import { Server } from 'socket.io';
 import { RoomManager } from './rooms.js';
 import { setupSignaling } from './signaling.js';
+import { logger } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -24,6 +25,13 @@ if (TURN_URL && TURN_USER && TURN_PASS) {
 }
 
 const app = express();
+app.use((req, res, next) => {
+  const isStatic = /^\/(js|css|vendor|favicon)/.test(req.path);
+  res.on('finish', () => {
+    if (!isStatic) logger.debug(`HTTP ${req.method} ${req.originalUrl} -> ${res.statusCode}`);
+  });
+  next();
+});
 app.use(express.static(join(__dirname, '..', 'client')));
 app.use('/vendor/socket.io', express.static(join(__dirname, '..', 'node_modules', 'socket.io', 'client-dist')));
 // 客户端拉取 ICE 配置
@@ -60,19 +68,20 @@ setupSignaling(io, rooms);
 
 server.listen(PORT, HOST, () => {
   const proto = useHttps ? 'https' : 'http';
-  console.log('══════════════════════════════════════════');
-  console.log('  📻 开黑电台 语音服务器已启动');
-  console.log(`  本机: ${proto}://localhost:${PORT}`);
+  logger.work('══════════════════════════════════════════');
+  logger.work('  📻 开黑电台 语音服务器已启动 (Debug 版日志已开启)');
+  logger.work(`  日志目录: ${process.env.LOG_DIR || join(process.cwd(), '中间产物', 'logs')}`);
+  logger.work(`  本机: ${proto}://localhost:${PORT}`);
   const nets = getLanAddresses();
   if (nets.length) {
-    console.log(`  局域网: ${proto}://${nets[0]}:${PORT}`);
+    logger.work(`  局域网: ${proto}://${nets[0]}:${PORT}`);
     if (!useHttps) {
-      console.log('  ⚠️  非本机访问需 HTTPS 才能用麦克风:');
-      console.log('     npm run certs 生成证书后，HTTPS=1 npm start');
+      logger.work('  ⚠️  非本机访问需 HTTPS 才能用麦克风:');
+      logger.work('     npm run certs 生成证书后，HTTPS=1 npm start');
     }
   }
-  console.log(`  ICE: ${JSON.stringify(iceServers)}`);
-  console.log('══════════════════════════════════════════');
+  logger.work(`  ICE: ${JSON.stringify(iceServers)}`);
+  logger.work('══════════════════════════════════════════');
 });
 
 function getLanAddresses() {
