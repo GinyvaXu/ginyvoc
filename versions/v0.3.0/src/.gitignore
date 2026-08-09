@@ -1,0 +1,16 @@
+node_modules/
+中间产物/
+成品/
+build/
+dist/
+logs/
+versions/*/dist/
+versions/*/installer/
+versions/*/*.exe
+*.log
+.DS_Store
+Thumbs.db
+.env
+.vscode/
+.idea/
+installer/*.exe
