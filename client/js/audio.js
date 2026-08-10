@@ -79,6 +79,12 @@ export class AudioEngine {
     return devices.filter((d) => d.kind === 'audioinput');
   }
 
+  // 输出设备（扬声器）：Chromium/Electron 支持；浏览器受 setSinkId 支持度限制
+  async refreshOutputDevices() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter((d) => d.kind === 'audiooutput');
+  }
+
   // ---------- VAD ----------
   setVadThreshold(t) {
     this.vadThreshold = t;

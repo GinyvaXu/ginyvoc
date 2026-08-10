@@ -55,15 +55,23 @@
             <div class="menu-sep"></div>
             <div class="menu-info-row">PTT 按键：<kbd id="menu-ptt-key">空格</kbd></div>
             <button class="menu-item" data-action="capture-ptt"><span class="mi">⌨️</span><span class="mi-text">重新设置 PTT 按键</span></button>
+            <div class="menu-sep"></div>
+            <button class="menu-item" data-action="open-settings"><span class="mi">🎛️</span><span class="mi-text">音频设置（输入/输出设备）</span></button>
           </div>
         </div>
 
         <div class="menu" data-menu="screen">
           <button class="menu-btn" type="button">屏幕 <span class="caret">▾</span></button>
           <div class="menu-panel" id="menu-screen">
+            <div class="menu-group-title">共享来源</div>
+            <select id="menu-share-source" class="menu-select">
+              <option value="screen">屏幕 / 窗口 / 标签页</option>
+              <option value="obs">OBS 虚拟摄像头</option>
+            </select>
+            <label class="menu-check"><input id="menu-share-audio" type="checkbox" /> 同时共享系统声音（看视频/电影）</label>
             <button class="menu-item" data-action="toggle-screen"><span class="mi">🖥️</span><span class="mi-text" id="menu-screen-text">共享屏幕</span><span class="mi-state" id="menu-screen-state">未共享</span></button>
             <div class="menu-sep"></div>
-            <div class="menu-info-row" id="menu-screen-tip">可共享整个屏幕 / 窗口 / 标签页</div>
+            <div class="menu-info-row" id="menu-screen-tip">选择 OBS 虚拟摄像头可共享 OBS 合成画面（弹幕/字幕/画中画）</div>
           </div>
         </div>
 
@@ -80,8 +88,10 @@
         <div class="menu" data-menu="settings">
           <button class="menu-btn" type="button">设置 <span class="caret">▾</span></button>
           <div class="menu-panel menu-panel-wide" id="menu-settings">
-            <div class="menu-group-title">输入设备</div>
+            <div class="menu-group-title">输入设备（麦克风）</div>
             <select id="menu-device" class="menu-select"></select>
+            <div class="menu-group-title">输出设备（扬声器）</div>
+            <select id="menu-output-device" class="menu-select"></select>
             <div class="menu-group-title">VAD 灵敏度 <span id="menu-vad-value" class="dim">0.020</span></div>
             <input id="menu-vad" class="menu-range" type="range" min="0.005" max="0.06" step="0.001" />
             <label class="menu-check"><input id="menu-ns" type="checkbox" checked /> 降噪 / 回声消除</label>
@@ -154,8 +164,12 @@
     <div class="modal-card">
       <h3>⚙️ 完整设置</h3>
       <div class="field">
-        <label>输入设备</label>
+        <label>输入设备（麦克风）</label>
         <select id="set-device"></select>
+      </div>
+      <div class="field">
+        <label>输出设备（扬声器）</label>
+        <select id="set-output-device"></select>
       </div>
       <div class="field">
         <label>说话模式</label>

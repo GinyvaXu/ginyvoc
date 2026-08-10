@@ -1,6 +1,6 @@
 {
   "name": "ginyvoc",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "GinyVoC - game voice chat with channels & screen sharing (WebRTC mesh + Socket.IO signaling)",
   "main": "desktop/main.js",
   "type": "module",

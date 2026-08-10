@@ -4,10 +4,10 @@
   align-items: center;
   gap: 2px;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+  /* 关键：不能设 overflow-x:auto —— 它会把 overflow-y 计算为 auto，
+     把绝对定位的下拉面板裁剪掉（表现为“菜单点了没反应”） */
+  overflow: visible;
 }
-.menubar::-webkit-scrollbar { display: none; }
 .menu { position: relative; flex: 0 0 auto; }
 .menu-btn {
   display: flex;

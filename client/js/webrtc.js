@@ -4,18 +4,21 @@
 
 export class PeerMesh {
   constructor({ userId, signaling, iceServers, audioStream,
-                onPeerAudio, onPeerScreen, onPeerScreenStop, onPeerState }) {
+                onPeerAudio, onPeerScreenAudio, onPeerScreen, onPeerScreenStop, onPeerState }) {
     this.userId = userId;
     this.signal = signaling;
     this.iceServers = iceServers;
     this.audioStream = audioStream;
     this.onPeerAudio = onPeerAudio;
+    this.onPeerScreenAudio = onPeerScreenAudio;
     this.onPeerScreen = onPeerScreen;
     this.onPeerScreenStop = onPeerScreenStop;
     this.onPeerState = onPeerState;
 
     this.pcs = new Map();              // peerId -> RTCPeerConnection
     this.screenSenders = new Map();    // peerId -> RTCRtpSender (共享屏幕发送器)
+    this.screenAudioSenders = new Map(); // peerId -> RTCRtpSender (共享系统声音发送器)
+    this.screenStreamIds = new Set();  // 已收到的屏幕共享流 id（用于区分麦克风/系统声音）
     this.localScreenStream = null;
     this.makingOffer = false;
   }
@@ -33,11 +36,18 @@ export class PeerMesh {
     pc.ontrack = (e) => {
       const stream = e.streams[0];
       if (!stream) return;
-      if (e.track.kind === 'audio') {
-        this.onPeerAudio?.(peer.id, stream);
-      } else {
+      if (e.track.kind === 'video') {
+        // 视频轨 = 屏幕共享画面；记录流 id 供音频轨区分麦克风/系统声音
+        this.screenStreamIds.add(stream.id);
         e.track.onended = () => this.onPeerScreenStop?.(peer.id);
         this.onPeerScreen?.(peer.id, stream);
+      } else if (e.track.kind === 'audio') {
+        // 麦克风流 vs 共享系统声音流：共享流必然同时带视频轨
+        if (this.screenStreamIds.has(stream.id) || stream.getVideoTracks().length > 0) {
+          this.onPeerScreenAudio?.(peer.id, stream);
+        } else {
+          this.onPeerAudio?.(peer.id, stream);
+        }
       }
     };
 
@@ -117,14 +127,28 @@ export class PeerMesh {
   async shareScreen(stream) {
     this.localScreenStream = stream;
     const track = stream.getVideoTracks()[0];
-    if (!track) return;
-    for (const [peerId, pc] of this.pcs) {
-      const sender = this.screenSenders.get(peerId);
-      if (sender) {
-        await sender.replaceTrack(track); // 同类型替换，无需重协商
-      } else {
-        const s = pc.addTrack(track, stream); // 新增 transceiver，触发重协商
-        this.screenSenders.set(peerId, s);
+    if (track) {
+      for (const [peerId, pc] of this.pcs) {
+        const sender = this.screenSenders.get(peerId);
+        if (sender) {
+          await sender.replaceTrack(track); // 同类型替换，无需重协商
+        } else {
+          const s = pc.addTrack(track, stream); // 新增 transceiver，触发重协商
+          this.screenSenders.set(peerId, s);
+        }
+      }
+    }
+    // 系统声音：单独一条音频轨（接收端独立 <audio> 播放，不参与说话检测）
+    const audioTrack = stream.getAudioTracks()[0];
+    if (audioTrack) {
+      for (const [peerId, pc] of this.pcs) {
+        const sender = this.screenAudioSenders.get(peerId);
+        if (sender) {
+          await sender.replaceTrack(audioTrack);
+        } else {
+          const s = pc.addTrack(audioTrack, stream);
+          this.screenAudioSenders.set(peerId, s);
+        }
       }
     }
   }
@@ -138,6 +162,10 @@ export class PeerMesh {
       try { await sender.replaceTrack(null); } catch { /* 对端可能已断开 */ }
       this.screenSenders.delete(peerId);
     }
+    for (const [peerId, sender] of this.screenAudioSenders) {
+      try { await sender.replaceTrack(null); } catch { /* 对端可能已断开 */ }
+      this.screenAudioSenders.delete(peerId);
+    }
   }
 
   removePeer(peerId) {
@@ -147,6 +175,7 @@ export class PeerMesh {
       this.pcs.delete(peerId);
     }
     this.screenSenders.delete(peerId);
+    this.screenAudioSenders.delete(peerId);
   }
 
   closeAll() {

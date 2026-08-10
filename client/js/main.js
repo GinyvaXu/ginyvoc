@@ -19,9 +19,12 @@ const state = {
 
 const settings = {
   deviceId: 'default',
+  outputDeviceId: 'default',
   noiseSuppression: true,
   vad: 0.02,
   pttKey: 'Space',
+  shareSource: 'screen',   // screen | obs（OBS 虚拟摄像头）
+  shareAudio: false,       // 共享屏幕时同时共享系统声音
 };
 
 let config = null;
@@ -29,10 +32,32 @@ let signal = null;
 let audio = null;
 let mesh = null;
 let peerAudio = new Map();  // peerId -> <audio> 播放元素
+let screenAudioPlayers = new Map(); // peerId -> <audio>（对端共享的系统声音）
 let pttDown = false;
 let vadSpeaking = false;
 let pttCapturing = false;
 let micReady = false;
+
+// ---------- 设置持久化 ----------
+function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('ginyvoc:settings') || '{}');
+    if (typeof saved.deviceId === 'string') settings.deviceId = saved.deviceId;
+    if (typeof saved.outputDeviceId === 'string') settings.outputDeviceId = saved.outputDeviceId;
+    if (typeof saved.noiseSuppression === 'boolean') settings.noiseSuppression = saved.noiseSuppression;
+    if (typeof saved.vad === 'number') settings.vad = saved.vad;
+    if (typeof saved.pttKey === 'string') settings.pttKey = saved.pttKey;
+    if (saved.shareSource === 'screen' || saved.shareSource === 'obs') settings.shareSource = saved.shareSource;
+    if (typeof saved.shareAudio === 'boolean') settings.shareAudio = saved.shareAudio;
+    state.pttKey = settings.pttKey;
+  } catch { /* 隐私模式读取失败时使用默认值 */ }
+}
+
+function persistSettings() {
+  try {
+    localStorage.setItem('ginyvoc:settings', JSON.stringify(settings));
+  } catch { /* 隐私模式写入失败时仅本次会话生效 */ }
+}
 
 // ---------- 启动 ----------
 window.__ginyvocBoot = false;
@@ -52,6 +77,7 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 async function boot() {
+  loadSettings();
   const res = await fetch('/api/config');
   config = await res.json();
   console.log('[ginyvoc] config ok');
@@ -146,6 +172,8 @@ function resetApp() {
   audio?.stopVAD();
   peerAudio.forEach((el) => el.remove());
   peerAudio.clear();
+  screenAudioPlayers.forEach((el) => el.remove());
+  screenAudioPlayers.clear();
   ui._screenTiles.forEach((_, id) => ui.removeScreenTile(id));
   ui.$('#chat-messages').innerHTML = '';
   ui.screen('lobby');
@@ -176,6 +204,12 @@ function onRoomState(s) {
       peerAudio.delete(id);
     }
   }
+  for (const [id, el] of [...screenAudioPlayers]) {
+    if (!inChannel.has(id)) {
+      el.remove();
+      screenAudioPlayers.delete(id);
+    }
+  }
 }
 
 // ---------- 频道 ----------
@@ -195,6 +229,7 @@ ui.onChannelClick = async (channelId) => {
     iceServers: config.iceServers,
     audioStream: null, // 麦克风异步就绪后经 addAudioStream 补入
     onPeerAudio,
+    onPeerScreenAudio,
     onPeerScreen,
     onPeerScreenStop: (peerId) => ui.removeScreenTile(peerId),
     onPeerState: (peerId, conn) => {
@@ -202,6 +237,8 @@ ui.onChannelClick = async (channelId) => {
         ui.removeScreenTile(peerId);
         const el = peerAudio.get(peerId);
         if (el) { el.remove(); peerAudio.delete(peerId); }
+        const sel = screenAudioPlayers.get(peerId);
+        if (sel) { sel.remove(); screenAudioPlayers.delete(peerId); }
       }
     },
   });
@@ -239,6 +276,10 @@ async function leaveChannel() {
     el.remove();
     peerAudio.delete(id);
   }
+  for (const [id, el] of [...screenAudioPlayers]) {
+    el.remove();
+    screenAudioPlayers.delete(id);
+  }
   for (const id of [...ui._screenTiles.keys()]) ui.removeScreenTile(id);
   state.channelId = null;
   ui.currentChannel = null;
@@ -259,6 +300,22 @@ function onPeerAudio(peerId, stream) {
     ui.setMeter(peerId, level);
     ui.setSpeaking(peerId, level > 0.07);
   });
+}
+
+function onPeerScreenAudio(peerId, stream) {
+  let el = screenAudioPlayers.get(peerId);
+  if (!el) {
+    el = document.createElement('audio');
+    el.autoplay = true;
+    document.body.appendChild(el);
+    screenAudioPlayers.set(peerId, el);
+  }
+  el.muted = state.deaf;
+  el.srcObject = stream;
+  el.play().catch(() => {});
+  if (settings.outputDeviceId !== 'default' && el.setSinkId) {
+    el.setSinkId(settings.outputDeviceId).catch(() => {});
+  }
 }
 
 function onPeerScreen(peerId, stream) {
@@ -312,6 +369,7 @@ function toggleDeafen() {
   state.deaf = !state.deaf;
   applyVoiceState();
   for (const el of peerAudio.values()) el.muted = state.deaf;
+  for (const el of screenAudioPlayers.values()) el.muted = state.deaf;
   updateControlUI();
   signal.updateMedia({ deaf: state.deaf });
 }
@@ -402,7 +460,10 @@ function wireMenu() {
       closeMenus();
       if (!wasOpen) {
         menu.classList.add('open');
-        if (menu.dataset.menu === 'settings') populateDevices(ui.$('#menu-device'));
+        if (menu.dataset.menu === 'settings') {
+          populateDevices(ui.$('#menu-device'));
+          populateOutputDevices(ui.$('#menu-output-device'));
+        }
       }
       updateMenuUI();
     });
@@ -428,6 +489,7 @@ function wireMenu() {
     ui.$('#menu-vad-value').textContent = settings.vad.toFixed(3);
     ui.$('#set-vad').value = settings.vad;
     ui.$('#vad-value').textContent = settings.vad.toFixed(3);
+    persistSettings();
   });
   ui.$('#menu-ns').addEventListener('change', () => {
     settings.noiseSuppression = ui.$('#menu-ns').checked;
@@ -438,6 +500,21 @@ function wireMenu() {
     settings.deviceId = ui.$('#menu-device').value;
     ui.$('#set-device').value = settings.deviceId;
     applyAudioDevice();
+    persistSettings();
+  });
+  ui.$('#menu-output-device').addEventListener('change', () => {
+    ui.$('#set-output-device').value = ui.$('#menu-output-device').value;
+    applyOutputDevice(ui.$('#menu-output-device').value);
+  });
+  ui.$('#menu-share-source').addEventListener('change', () => {
+    settings.shareSource = ui.$('#menu-share-source').value;
+    persistSettings();
+    updateMenuUI();
+  });
+  ui.$('#menu-share-audio').addEventListener('change', () => {
+    settings.shareAudio = ui.$('#menu-share-audio').checked;
+    persistSettings();
+    updateMenuUI();
   });
 
   ui.$('#btn-shortcuts-close').addEventListener('click', () => { ui.$('#modal-shortcuts').hidden = true; });
@@ -528,13 +605,20 @@ function updateMenuUI() {
   ui.$('#menu-ptt-key').textContent = prettyKey(state.pttKey);
   ui.$('#menu-screen-text').textContent = state.screen ? '停止共享' : '共享屏幕';
   ui.$('#menu-screen-state').textContent = state.screen ? '共享中' : '未共享';
-  ui.$('#menu-screen-tip').textContent = state.screen ? '点击菜单项可停止共享' : '可共享整个屏幕 / 窗口 / 标签页';
+  ui.$('#menu-screen-tip').textContent = state.screen
+    ? '点击菜单项可停止共享'
+    : (settings.shareSource === 'obs'
+        ? 'OBS 虚拟摄像头共享：请先在 OBS 中启动虚拟摄像头（工具 → 虚拟摄像头）'
+        : (settings.shareAudio ? '将同时共享系统声音（适合一起看视频/电影）' : '可共享整个屏幕 / 窗口 / 标签页'));
   ui.$('#menu-room-code').textContent = state.roomId || '--';
   // 设置
   ui.$('#menu-ns').checked = settings.noiseSuppression;
   ui.$('#menu-vad').value = settings.vad;
   ui.$('#menu-vad-value').textContent = settings.vad.toFixed(3);
   ui.$('#menu-device').value = settings.deviceId;
+  ui.$('#menu-output-device').value = settings.outputDeviceId;
+  ui.$('#menu-share-source').value = settings.shareSource;
+  ui.$('#menu-share-audio').checked = settings.shareAudio;
 }
 
 function openShortcuts() {
@@ -588,6 +672,7 @@ function setPttKey(code) {
   settings.pttKey = code;
   pttCapturing = false;
   updatePttKeyLabel();
+  persistSettings();
   ui.toast(`PTT 按键已设为 ${prettyKey(code)}`);
 }
 
@@ -601,20 +686,53 @@ function updatePttKeyLabel() {
 }
 
 // ---------- 屏幕共享 ----------
+// 来源：screen = 系统屏幕/窗口/标签页；obs = OBS 虚拟摄像头
 async function startScreenShare() {
   let stream;
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: 30 },
-      audio: false,
-    });
+    if (settings.shareSource === 'obs') {
+      stream = await getObsStream();
+      // OBS 虚拟摄像头只输出画面；勾选系统声音时补充采集（需再选一次 OBS 正在采集的窗口）
+      if (settings.shareAudio && !stream.getAudioTracks().length) {
+        try {
+          const audioStream = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: 30 },
+            audio: true,
+          });
+          audioStream.getVideoTracks().forEach((t) => t.stop()); // 只保留系统声音
+          for (const t of audioStream.getAudioTracks()) stream.addTrack(t);
+        } catch {
+          ui.toast('未采集系统声音：仅共享 OBS 画面');
+        }
+      }
+    } else {
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 30 },
+        audio: settings.shareAudio,
+      });
+    }
   } catch { return; } // 用户取消
   state.screen = true;
   ui.addScreenTile('self', stream, getUsername(), { self: true });
-  stream.getVideoTracks()[0].addEventListener('ended', () => stopScreenShare());
+  stream.getVideoTracks()[0]?.addEventListener('ended', () => stopScreenShare());
   await mesh?.shareScreen(stream);
   await signal.updateMedia({ screen: true });
   updateControlUI();
+}
+
+async function getObsStream() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const cam = devices.find(
+    (d) => d.kind === 'videoinput' && /obs|virtual camera|vcam/i.test(d.label || ''),
+  );
+  if (!cam) {
+    ui.toast('未找到 OBS 虚拟摄像头：请先在 OBS 中启动虚拟摄像头（工具 → 虚拟摄像头）');
+    throw new Error('obs-not-found');
+  }
+  return navigator.mediaDevices.getUserMedia({
+    video: { deviceId: { exact: cam.deviceId }, frameRate: 30 },
+    audio: false,
+  });
 }
 
 async function stopScreenShare() {
@@ -640,9 +758,14 @@ function wireChat() {
 // ---------- 设置 ----------
 async function populateDevices(select) {
   select.innerHTML = '';
+  const optDefault = document.createElement('option');
+  optDefault.value = 'default';
+  optDefault.textContent = '默认（系统默认麦克风）';
+  select.appendChild(optDefault);
   try {
     const devices = await audio?.refreshDevices() ?? [];
     for (const d of devices) {
+      if (d.deviceId === 'default') continue;
       const opt = document.createElement('option');
       opt.value = d.deviceId;
       opt.textContent = d.label || `麦克风 ${devices.indexOf(d) + 1}`;
@@ -650,6 +773,38 @@ async function populateDevices(select) {
     }
   } catch { /* 权限未授予时为空 */ }
   select.value = settings.deviceId;
+}
+
+async function populateOutputDevices(select) {
+  select.innerHTML = '';
+  const optDefault = document.createElement('option');
+  optDefault.value = 'default';
+  optDefault.textContent = '默认输出设备';
+  select.appendChild(optDefault);
+  try {
+    const devices = await audio?.refreshOutputDevices() ?? [];
+    for (const d of devices) {
+      if (d.deviceId === 'default') continue;
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || `扬声器 ${devices.indexOf(d) + 1}`;
+      select.appendChild(opt);
+    }
+  } catch { /* 枚举失败时仅保留默认项 */ }
+  select.value = settings.outputDeviceId;
+}
+
+function applyOutputDevice(id) {
+  settings.outputDeviceId = id;
+  persistSettings();
+  const applyTo = (el) => {
+    if (el?.setSinkId) {
+      el.setSinkId(id).catch(() => ui.toast('输出设备切换失败：当前设备不支持'));
+    }
+  };
+  for (const el of peerAudio.values()) applyTo(el);
+  for (const el of screenAudioPlayers.values()) applyTo(el);
+  updateMenuUI();
 }
 
 async function openSettings() {
@@ -663,6 +818,7 @@ async function openSettings() {
   ui.$('#vad-value').textContent = settings.vad.toFixed(3);
   updatePttKeyLabel();
   await populateDevices(ui.$('#set-device'));
+  await populateOutputDevices(ui.$('#set-output-device'));
 }
 
 function applyAudioDevice() {
@@ -672,6 +828,7 @@ function applyAudioDevice() {
       noiseSuppression: settings.noiseSuppression,
     }).catch(() => ui.toast('音频设备切换失败'));
   }
+  persistSettings();
   syncModeWithAudio();
   updateControlUI();
 }
@@ -686,10 +843,13 @@ function saveSettings() {
   settings.noiseSuppression = ui.$('#set-ns').checked;
   settings.vad = Number(ui.$('#set-vad').value);
   settings.deviceId = ui.$('#set-device').value;
+  settings.outputDeviceId = ui.$('#set-output-device').value;
   state.pttKey = settings.pttKey;
 
   audio?.setVadThreshold(settings.vad);
   applyAudioDevice();
+  applyOutputDevice(settings.outputDeviceId);
+  persistSettings();
 }
 
 function wireSettings() {
@@ -699,6 +859,13 @@ function wireSettings() {
 
   ui.$('#btn-ptt-key').addEventListener('click', startPttCapture);
 }
+
+// 调试钩子：供自动化验证内部媒体状态（对正常使用无影响）
+window.__ginyvocMedia = () => ({
+  peerAudio: [...peerAudio.keys()],
+  screenAudioPlayers: [...screenAudioPlayers.keys()],
+  screenTiles: [...ui._screenTiles.keys()],
+});
 
 // 进入页支持 ?room=XXXX 邀请链接
 const urlParams = new URLSearchParams(location.search);
