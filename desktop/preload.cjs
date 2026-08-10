@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('gvDesktop', {
   applyUpdate: () => ipcRenderer.invoke('gv:apply-update'),
   // 打开 GitHub Releases 页
   openReleasePage: () => ipcRenderer.invoke('gv:open-release-page'),
+  // 退出应用
+  quit: () => ipcRenderer.send('gv:quit'),
   // 更新进度/状态推送：cb({ stage })
   onUpdateProgress: (cb) => ipcRenderer.on('gv:update-progress', (_e, data) => cb(data)),
   // 启动时后台发现新版本：cb(result)

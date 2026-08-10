@@ -37,13 +37,17 @@ export class AudioEngine {
       this.analyser = this.ctx.createAnalyser();
       this.analyser.fftSize = 1024;
       this.analyser.smoothingTimeConstant = 0.2;
-      this.gainNode.connect(this.analyser);
+      // 注意：analyser 不接在 gain 之后，改由输入源直连（见 init），
+      // 否则 VAD 模式下初始静音会让分析器读不到信号，形成“检测不到说话→一直静音”死锁
       this.gainNode.connect(this.dest);
     }
     await this._acquire();
     if (this._currentSource) this._currentSource.disconnect();
     this._currentSource = this.ctx.createMediaStreamSource(this.micStream);
     this._sourceNodes.add(this._currentSource);
+    // 输入侧直连分析器：VAD/音量表始终能看到原始麦克风信号，
+    // 静音（gain=0）只影响发送方向，不会让 VAD 检测不到说话
+    this._currentSource.connect(this.analyser);
     this._currentSource.connect(this.gainNode);
     await this.ctx.resume();
   }
@@ -128,6 +132,8 @@ export class AudioEngine {
 
   // 本地音量表 (0-1)
   startLocalMeter(cb) {
+    if (this._localMeterRunning) return; // 幂等：避免重复 rAF 循环
+    this._localMeterRunning = true;
     this._startMeter(this.analyser, cb);
   }
 
@@ -165,6 +171,7 @@ export class AudioEngine {
 
   dispose() {
     this.stopVAD();
+    this._localMeterRunning = false;
     this._sourceNodes.forEach((n) => n.disconnect());
     this._sourceNodes.clear();
     if (this.micStream) this.micStream.getTracks().forEach((t) => t.stop());

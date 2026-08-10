@@ -157,7 +157,7 @@ function handleRoomResponse(res) {
   setConnStatus(true);
   onRoomState(res.roomState);
   updateMenuUI();
-  ui.toast(`已进入房间 ${res.roomId}，点击左侧频道加入语音`);
+  ui.toast(`已进入房间 ${res.roomId}，双击左侧频道加入语音`);
 }
 
 function resetApp() {
@@ -257,11 +257,13 @@ async function initMicAsync() {
     audio.setVadThreshold(settings.vad);
     mesh?.addAudioStream(audio.outStream);
     micReady = true;
+    // 本地音量表：让自己在成员列表里也能看到实时音量
+    audio.startLocalMeter((level) => ui.setMeter(state.meId, level));
     applyVoiceState();
     syncModeWithAudio();
     updateControlUI();
   } catch (err) {
-    ui.toast('无法使用麦克风，当前为收听模式');
+    ui.toast('无法使用麦克风：请检查 Windows 设置 → 隐私 → 麦克风 是否允许桌面应用访问（浏览器版请检查网页权限）');
   }
 }
 
@@ -450,7 +452,16 @@ const MENU_ACTIONS = {
   'open-shortcuts': () => openShortcuts(),
   'open-about': () => openAbout(),
   'check-update': () => checkUpdate(),
+  'quit-app': () => quitApp(),
 };
+
+function quitApp() {
+  if (window.gvDesktop?.quit) {
+    window.gvDesktop.quit();
+  } else {
+    ui.toast('浏览器版请直接关闭标签页即可');
+  }
+}
 
 function wireMenu() {
   document.querySelectorAll('.menu').forEach((menu) => {
@@ -865,6 +876,11 @@ window.__ginyvocMedia = () => ({
   peerAudio: [...peerAudio.keys()],
   screenAudioPlayers: [...screenAudioPlayers.keys()],
   screenTiles: [...ui._screenTiles.keys()],
+  micReady,
+  audioCtx: audio?.ctx?.state ?? null,
+  vadRunning: audio?.vadRunning ?? null,
+  micTracks: audio?.micStream?.getTracks().length ?? 0,
+  outTracks: audio?.outStream?.getTracks().length ?? 0,
 });
 
 // 进入页支持 ?room=XXXX 邀请链接
@@ -884,7 +900,7 @@ if (new URLSearchParams(location.search).has('ginyvoc_test')) {
       ui.$('#btn-create').click();
     }
     await new Promise((r) => setTimeout(r, 1800));
-    document.querySelector('.channel-item')?.click();
+    document.querySelector('.channel-item')?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
   }, 500);
 }
 

@@ -4,7 +4,7 @@
 > 浏览器版**即开即用**，桌面版为 **Windows exe**（内嵌服务器，无需安装 Node.js）。
 > 语音走 **WebRTC P2P（mesh）**，语音与屏幕画面**不经过服务器**，服务器只做信令转发。
 
-![形态](https://img.shields.io/badge/形态-Web%20%2B%20Electron-blue) ![平台](https://img.shields.io/badge/平台-Windows%20%2F%20macOS%20%2F%20Linux-lightgrey) ![版本](https://img.shields.io/badge/版本-v0.5.0-green) ![技术](https://img.shields.io/badge/技术-WebRTC%20%2B%20Node.js-orange)
+![形态](https://img.shields.io/badge/形态-Web%20%2B%20Electron-blue) ![平台](https://img.shields.io/badge/平台-Windows%20%2F%20macOS%20%2F%20Linux-lightgrey) ![版本](https://img.shields.io/badge/版本-v0.5.1-green) ![技术](https://img.shields.io/badge/技术-WebRTC%20%2B%20Node.js-orange)
 
 ---
 
@@ -14,7 +14,7 @@
 |------|------|
 | 🎙️ 语音频道 | 房间（5 位邀请码）→ 多个语音频道，同频道即互通 |
 | 🎤 说话模式 | 语音检测 VAD / 按键说话 PTT（默认空格）/ 自由麦，三种一键切换 |
-| 🎧 状态反馈 | 说话指示光环 + 远端音量表 + 成员列表实时同步 |
+| 🎧 状态反馈 | 自己与他人均有说话光环 + 实时音量条 + 成员列表同步 |
 | 🔇 静音控制 | 单独静音麦克风、完全闭麦（不听也不说） |
 | 🖥️ 屏幕共享 | 共享整屏 / 窗口 / 标签页，或 **OBS 虚拟摄像头**；可附带系统声音一起看视频 |
 | 💬 文字聊天 | 房间内文字聊天，方便发房号、协调 |
@@ -73,6 +73,7 @@ npm start
 
 - **日志位置**：exe 旁 `logs\`（工作日志 `work-日期.log` / 报错日志 `error-日期.log` / 崩溃报告 `crash_*.txt`）
 - **托盘**：关闭窗口最小化到托盘，托盘菜单可“打开主界面 / 复制访问地址 / 退出”
+- **退出**：托盘右键 → 退出，或应用内 帮助 → 退出 GinyVoC；点窗口 × 只是最小化到托盘
 - **下载**：最新版见 [GitHub Releases](https://github.com/GinyvaXu/ginyvoc/releases)
 
 ### 🔄 自动更新（安装版）
@@ -223,6 +224,7 @@ node scripts/smoke-test.mjs
 
 | 版本 | 说明 |
 |------|------|
+| v0.5.1 | 修复 VAD 死锁（麦克风不工作）+ 本地音量反馈；托盘退出修复；频道双击进入；应用内退出 |
 | v0.5.0 | 菜单裁剪修复（五组菜单真实可用）；音频输入显性化 + 输出设备切换；屏幕共享支持 OBS 虚拟摄像头与系统声音；设置持久化 |
 | v0.4.0 | 更名 GinyVoC；Debug 版 exe 构建流程；自动更新；菜单/弹窗修复；产物全英文命名 |
 | v0.3.0 | 顶部菜单栏统筹全部功能；完整设置/快捷键/关于面板；弹窗遮挡修复 |

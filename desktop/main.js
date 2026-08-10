@@ -241,6 +241,8 @@ function wireUpdater() {
     shell.openExternal(RELEASE_PAGE);
     return { ok: true };
   });
+  // 界面内退出（帮助 → 退出 GinyVoC）
+  ipcMain.on('gv:quit', () => { quitting = true; shutdown(); });
 }
 
 async function autoCheckUpdate() {
@@ -254,12 +256,11 @@ async function autoCheckUpdate() {
   } catch { /* 后台检查失败静默处理 */ }
 }
 
-async function shutdown() {
-  try {
-    if (serverHandle?.server) {
-      await new Promise((r) => serverHandle.server.close(r));
-    }
-  } catch { /* 忽略关闭异常 */ }
+// 退出：必须先 app.quit()。内嵌服务器上挂着本应用自己的 Socket.IO 长连接，
+// 若先 await server.close() 会永远等不到回调（连接不释放）导致“退不出去”。
+function shutdown() {
+  try { serverHandle?.server?.closeAllConnections?.(); } catch { /* 忽略 */ }
+  try { serverHandle?.server?.close(); } catch { /* 忽略 */ }
   app.quit();
 }
 

@@ -29,7 +29,8 @@ export const ui = {
         <span class="channel-name"></span>
         <span class="count">${ch.members.length}</span>`;
       item.querySelector('.channel-name').textContent = ch.name;
-      item.addEventListener('click', () => this.onChannelClick?.(ch.id, isCurrent));
+      item.title = '双击进入语音频道';
+      item.addEventListener('dblclick', () => this.onChannelClick?.(ch.id, isCurrent));
       list.appendChild(item);
     }
   },
@@ -46,7 +47,7 @@ export const ui = {
     if (!this.currentChannel) {
       const empty = document.createElement('div');
       empty.className = 'muted';
-      empty.textContent = '点击左侧频道加入语音';
+      empty.textContent = '双击左侧频道加入语音';
       panel.appendChild(empty);
       return;
     }
