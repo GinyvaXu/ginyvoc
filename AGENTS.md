@@ -53,7 +53,7 @@ npm run archive         # 发布归档：产物/源码快照到 versions/vX.Y.Z/
 ## 当前状态
 - 版本：v0.4.0（开发中：改名 GinyVoC 收尾 / Debug 版 exe / 自动更新 / 菜单与界面修复）
 - 分支：main（稳定）/ develop（日常开发）
-- 远程：https://github.com/GinyvaXu/ginyvoc（私有）
+- 远程：https://github.com/GinyvaXu/ginyvoc（公开，自动更新依赖公开访问 update.json 与 Releases 资产）
 - 自动更新：桌面安装版内置 updater.js（多源清单 + NSIS 静默升级），清单为根目录 update.json
 - 构建产物一律英文命名（GinyVoC-Debug/Portable/Setup-vX.Y.Z.exe）；目录不含中文
 - 待办与路线图见 source/requirements.md 与 docs/gap-analysis.md
