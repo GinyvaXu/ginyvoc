@@ -51,7 +51,7 @@ npm run archive         # 发布归档：产物/源码快照到 versions/vX.Y.Z/
 - 局域网/公网需 HTTPS 与 TURN，见 README「局域网使用」「公网使用」
 
 ## 当前状态
-- 版本：v0.5.1（本轮：VAD 死锁修复 + 本地音量反馈 / 托盘退出修复 + 应用内退出 / 频道双击进入 / 菜单裁剪修复 / OBS 共享 + 系统声音）
+- 版本：v0.6.0（本轮：跨网络联机——服务器设置 本机开服/连朋友、双栈监听、ZeroTier/IPv6 直连；此前：VAD 修复/托盘退出/双击进频道/OBS 共享）
 - 分支：main（稳定）/ develop（日常开发）
 - 远程：https://github.com/GinyvaXu/ginyvoc（公开，自动更新依赖公开访问 update.json 与 Releases 资产）
 - 自动更新：桌面安装版内置 updater.js（多源清单 + NSIS 静默升级），清单为根目录 update.json

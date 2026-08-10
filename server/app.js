@@ -27,7 +27,7 @@ try { version = readFileSync(join(__dirname, '..', 'VERSION'), 'utf8').trim(); }
  */
 export async function startGinyVocServer(opts = {}) {
   const port = opts.port ?? 3000;
-  const host = opts.host ?? '0.0.0.0';
+  const host = opts.host ?? '::';   // 双栈监听：IPv4 + IPv6 均可访问
   const useHttps = opts.useHttps ?? false;
   const iceServers = opts.iceServers ?? [{ urls: 'stun:stun.l.google.com:19302' }];
   const retryOnBusy = opts.retryOnBusy ?? false;

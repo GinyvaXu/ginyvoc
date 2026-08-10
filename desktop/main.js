@@ -2,7 +2,8 @@
 // 职责：内嵌启动信令服务器 → 打开主窗口；系统托盘驻留；日志落盘（Debug 版）
 import { app, BrowserWindow, Tray, Menu, nativeImage, clipboard, session, dialog, ipcMain, shell } from 'electron';
 import { dirname, join } from 'node:path';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -41,6 +42,55 @@ let tray = null;
 let serverHandle = null;
 let appUrl = '';
 let quitting = false;
+let serverPort = 3000;
+
+// ── 服务器连接配置（本机开服 / 连接朋友的远程服务器）──
+let connCfg = { mode: 'local', address: '' };
+let remoteOrigin = null;
+
+function connectionFile() {
+  return join(app.getPath('userData'), 'connection.json');
+}
+
+function readConnectionConfig() {
+  try {
+    const raw = readFileSync(connectionFile(), 'utf8');
+    const cfg = JSON.parse(raw);
+    if (cfg && cfg.mode === 'remote' && typeof cfg.address === 'string' && cfg.address.trim()) {
+      return { mode: 'remote', address: normalizeRemoteAddress(cfg.address) };
+    }
+  } catch { /* 无配置或损坏 → 本机开服 */ }
+  return { mode: 'local', address: '' };
+}
+
+function normalizeRemoteAddress(input) {
+  let s = String(input).trim();
+  if (!/^https?:\/\//i.test(s)) s = 'http://' + s;
+  try {
+    const u = new URL(s);
+    if (!u.port) u.port = '3000';
+    return u.origin;
+  } catch {
+    return '';
+  }
+}
+
+function writeConnectionConfig(cfg) {
+  const dir = app.getPath('userData');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(connectionFile(), JSON.stringify(cfg, null, 2), 'utf8');
+}
+
+function getLocalUrls(port) {
+  const urls = [];
+  for (const list of Object.values(networkInterfaces())) {
+    for (const net of list ?? []) {
+      if (net.internal || net.address === '::1' || net.address.startsWith('fe80')) continue;
+      urls.push(net.family === 'IPv6' ? `http://[${net.address}]:${port}` : `http://${net.address}:${port}`);
+    }
+  }
+  return urls;
+}
 
 async function bootstrap() {
   const isPackaged = app.isPackaged;
@@ -56,10 +106,19 @@ async function bootstrap() {
   logger.work(`  日志目录: ${logDir}`);
   logger.work('══════════════════════════════════════════');
 
+  connCfg = readConnectionConfig();
+  remoteOrigin = connCfg.mode === 'remote' ? connCfg.address : null;
+  if (remoteOrigin) {
+    // 远程服务器多为内网/虚拟局域网明文 HTTP，Chromium 默认不给 getUserMedia 权限；
+    // 将该 origin 标记为安全来源（必须在 app ready 前设置）
+    app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', remoteOrigin);
+    logger.work(`连接远程服务器: ${remoteOrigin}`);
+  }
+
   try {
     serverHandle = await startGinyVocServer({
       port: Number(process.env.PORT || 3000),
-      host: '127.0.0.1',
+      host: '::',          // 双栈监听：本机/局域网/ZeroTier 虚拟网/IPv6 均可访问
       retryOnBusy: true,
     });
   } catch (err) {
@@ -69,8 +128,8 @@ async function bootstrap() {
     return;
   }
 
-  const port = serverHandle.port;
-  appUrl = `http://127.0.0.1:${port}`;
+  serverPort = serverHandle.port;
+  appUrl = remoteOrigin || `http://127.0.0.1:${serverPort}`;
   logger.work(`服务器已启动: ${appUrl}`);
 
   openDebugConsole(logDir);
@@ -202,7 +261,7 @@ function createTray() {
   tray.setToolTip('GinyVoC');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '打开主界面', click: () => showMainWindow() },
-    { label: '复制访问地址', click: () => clipboard.writeText(appUrl) },
+    { label: '复制访问地址', click: () => clipboard.writeText(remoteOrigin || getLocalUrls(serverPort)[0] || appUrl) },
     { type: 'separator' },
     { label: '退出', click: () => { quitting = true; shutdown(); } },
   ]));
@@ -240,6 +299,21 @@ function wireUpdater() {
     const { RELEASE_PAGE } = await import('./updater.js');
     shell.openExternal(RELEASE_PAGE);
     return { ok: true };
+  });
+  // 服务器设置（帮助 → 服务器设置）
+  ipcMain.handle('gv:get-server-config', () => ({
+    mode: connCfg.mode,
+    address: connCfg.address,
+    localUrls: getLocalUrls(serverPort),
+  }));
+  ipcMain.handle('gv:set-server-config', (_e, { mode, address } = {}) => {
+    const nextMode = mode === 'remote' ? 'remote' : 'local';
+    const nextAddress = nextMode === 'remote' ? normalizeRemoteAddress(address || '') : '';
+    if (nextMode === 'remote' && !nextAddress) return { ok: false, error: '服务器地址无效' };
+    writeConnectionConfig({ mode: nextMode, address: nextAddress });
+    logger.work(`服务器设置已保存: ${nextMode}${nextAddress ? ' → ' + nextAddress : ''}`);
+    setTimeout(() => { app.relaunch(); app.exit(0); }, 500); // 切换服务器需重启生效
+    return { ok: true, restarting: true };
   });
   // 界面内退出（帮助 → 退出 GinyVoC）
   ipcMain.on('gv:quit', () => { quitting = true; shutdown(); });

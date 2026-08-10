@@ -4,7 +4,7 @@
 > 浏览器版**即开即用**，桌面版为 **Windows exe**（内嵌服务器，无需安装 Node.js）。
 > 语音走 **WebRTC P2P（mesh）**，语音与屏幕画面**不经过服务器**，服务器只做信令转发。
 
-![形态](https://img.shields.io/badge/形态-Web%20%2B%20Electron-blue) ![平台](https://img.shields.io/badge/平台-Windows%20%2F%20macOS%20%2F%20Linux-lightgrey) ![版本](https://img.shields.io/badge/版本-v0.5.1-green) ![技术](https://img.shields.io/badge/技术-WebRTC%20%2B%20Node.js-orange)
+![形态](https://img.shields.io/badge/形态-Web%20%2B%20Electron-blue) ![平台](https://img.shields.io/badge/平台-Windows%20%2F%20macOS%20%2F%20Linux-lightgrey) ![版本](https://img.shields.io/badge/版本-v0.6.0-green) ![技术](https://img.shields.io/badge/技术-WebRTC%20%2B%20Node.js-orange)
 
 ---
 
@@ -98,7 +98,27 @@ HTTPS=1 npm start  # 启动 HTTPS
 
 其他设备访问 `https://<你的电脑局域网IP>:3000`，首次需在浏览器中信任自签名证书。
 
-## 🌍 公网使用
+## 🌐 跨网络联机（零成本，推荐组网）
+
+> 适用：固定朋友开黑、不在同一局域网、不想花钱租服务器。
+> 思路：用 **ZeroTier 等虚拟组网**把大家放进同一个「虚拟局域网」，由其中一人**本机开服**，其他人连他的虚拟网地址——信令和语音都在虚拟网内直连，完全免费、不需要 TURN。
+
+### 方法一：ZeroTier 组网（推荐）
+
+1. 所有人都安装 [ZeroTier](https://www.zerotier.com/download/) 并注册登录
+2. 一人创建 Network（网络 ID 形如 `abcd1234ef123456`），其余人加入同一网络并在网页后台批准
+3. 开服的人：运行 GinyVoC → **帮助 → 服务器设置** → 勾选「本机开服」，把「本机可访问地址」（如 `http://10.147.x.x:3000`）发给好友
+4. 好友：**帮助 → 服务器设置** → 勾选「连接朋友的服务器」→ 填入地址 → 保存并重启
+
+### 方法二：IPv6 直连（免装软件）
+
+国内运营商宽带大多已分配公网 IPv6。双方都有 IPv6 时，开服的人把 `http://[IPv6地址]:3000` 发给好友即可直连（服务器已默认双栈监听）。
+
+### 防火墙
+
+开服前请在 Windows 防火墙允许 GinyVoC 通过（或放行 TCP/UDP 3000 端口），否则好友连不上。
+
+### 有公网 IP / VPS 时（进阶）
 
 1. 服务器部署到公网 VPS（开放 3000 端口）
 2. 严格 NAT 下 P2P 打洞失败时配置 TURN 兜底：
@@ -224,6 +244,7 @@ node scripts/smoke-test.mjs
 
 | 版本 | 说明 |
 |------|------|
+| v0.6.0 | 跨网络联机：服务器设置（本机开服/连朋友）、双栈监听、ZeroTier/IPv6 直连方案 |
 | v0.5.1 | 修复 VAD 死锁（麦克风不工作）+ 本地音量反馈；托盘退出修复；频道双击进入；应用内退出 |
 | v0.5.0 | 菜单裁剪修复（五组菜单真实可用）；音频输入显性化 + 输出设备切换；屏幕共享支持 OBS 虚拟摄像头与系统声音；设置持久化 |
 | v0.4.0 | 更名 GinyVoC；Debug 版 exe 构建流程；自动更新；菜单/弹窗修复；产物全英文命名 |

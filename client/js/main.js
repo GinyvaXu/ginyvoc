@@ -99,6 +99,8 @@ async function boot() {
   wirePtt();
   wireMenu();
   ui.$('#menu-debug-state').textContent = window.gvDesktop ? '桌面版 · 日志见 exe 旁 logs 目录' : '浏览器版 · 日志见服务端日志目录';
+  const lobbyServer = ui.$('#lobby-server');
+  if (lobbyServer) lobbyServer.textContent = `当前服务器：${location.origin}`;
   window.__ginyvocBoot = true;
   console.log('[ginyvoc] boot done');
 }
@@ -452,6 +454,7 @@ const MENU_ACTIONS = {
   'open-shortcuts': () => openShortcuts(),
   'open-about': () => openAbout(),
   'check-update': () => checkUpdate(),
+  'open-server-settings': () => openServerSettings(),
   'quit-app': () => quitApp(),
 };
 
@@ -527,6 +530,12 @@ function wireMenu() {
     persistSettings();
     updateMenuUI();
   });
+
+  // 服务器设置
+  ui.$('#btn-server-cancel').addEventListener('click', () => { ui.$('#modal-server').hidden = true; });
+  ui.$('#btn-server-save').addEventListener('click', saveServerSettings);
+  ui.$('#server-mode-local').addEventListener('change', () => { ui.$('#server-address-field').hidden = true; });
+  ui.$('#server-mode-remote').addEventListener('change', () => { ui.$('#server-address-field').hidden = false; });
 
   ui.$('#btn-shortcuts-close').addEventListener('click', () => { ui.$('#modal-shortcuts').hidden = true; });
   ui.$('#btn-about-close').addEventListener('click', () => { ui.$('#modal-about').hidden = true; });
@@ -630,6 +639,51 @@ function updateMenuUI() {
   ui.$('#menu-output-device').value = settings.outputDeviceId;
   ui.$('#menu-share-source').value = settings.shareSource;
   ui.$('#menu-share-audio').checked = settings.shareAudio;
+}
+
+async function openServerSettings() {
+  const modal = ui.$('#modal-server');
+  modal.hidden = false;
+  const localEl = ui.$('#server-local-urls');
+  const addrEl = ui.$('#server-address');
+  const local = ui.$('#server-mode-local');
+  const remote = ui.$('#server-mode-remote');
+  local.disabled = false;
+  remote.disabled = false;
+  if (window.gvDesktop?.getServerConfig) {
+    const cfg = await window.gvDesktop.getServerConfig();
+    local.checked = cfg.mode !== 'remote';
+    remote.checked = cfg.mode === 'remote';
+    addrEl.value = cfg.address || '';
+    ui.$('#server-address-field').hidden = cfg.mode !== 'remote';
+    localEl.innerHTML = cfg.localUrls?.length
+      ? cfg.localUrls.map((u) => `<code>${u}</code>`).join('<br>')
+      : '（未检测到局域网/组网地址，请确认已加入 ZeroTier 等虚拟局域网）';
+  } else {
+    // 浏览器版：直接访问目标地址即可
+    local.checked = true;
+    remote.disabled = true;
+    addrEl.value = location.origin;
+    ui.$('#server-address-field').hidden = false;
+    localEl.innerHTML = `当前服务器：<code>${location.origin}</code><br>浏览器版切换服务器请直接打开目标地址。`;
+  }
+}
+
+async function saveServerSettings() {
+  if (!window.gvDesktop?.setServerConfig) {
+    ui.toast('浏览器版无需保存：请直接访问目标服务器地址');
+    ui.$('#modal-server').hidden = true;
+    return;
+  }
+  const mode = ui.$('#server-mode-remote').checked ? 'remote' : 'local';
+  const address = ui.$('#server-address').value.trim();
+  const r = await window.gvDesktop.setServerConfig({ mode, address });
+  if (r?.ok) {
+    ui.$('#modal-server').hidden = true;
+    ui.toast('设置已保存，正在重启应用…');
+  } else {
+    ui.toast(r?.error || '保存失败');
+  }
 }
 
 function openShortcuts() {

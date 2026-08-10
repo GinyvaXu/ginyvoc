@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('gvDesktop', {
   openReleasePage: () => ipcRenderer.invoke('gv:open-release-page'),
   // 退出应用
   quit: () => ipcRenderer.send('gv:quit'),
+  // 服务器设置（本机开服 / 连接远程）
+  getServerConfig: () => ipcRenderer.invoke('gv:get-server-config'),
+  setServerConfig: (cfg) => ipcRenderer.invoke('gv:set-server-config', cfg),
   // 更新进度/状态推送：cb({ stage })
   onUpdateProgress: (cb) => ipcRenderer.on('gv:update-progress', (_e, data) => cb(data)),
   // 启动时后台发现新版本：cb(result)

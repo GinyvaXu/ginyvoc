@@ -28,6 +28,7 @@
       </div>
       <div id="lobby-error" class="error" hidden></div>
       <p class="hint">建议使用 Chrome / Edge。首次进入语音频道时浏览器会请求麦克风权限。</p>
+      <p class="hint" id="lobby-server"></p>
     </div>
   </section>
 
@@ -106,6 +107,7 @@
             <button class="menu-item" data-action="open-shortcuts"><span class="mi">⌨️</span><span class="mi-text">快捷键说明</span></button>
             <button class="menu-item" data-action="open-about"><span class="mi">📻</span><span class="mi-text">关于GinyVoC</span></button>
             <button class="menu-item" data-action="check-update"><span class="mi">🔄</span><span class="mi-text">检查更新</span></button>
+            <button class="menu-item" data-action="open-server-settings"><span class="mi">🖧</span><span class="mi-text">服务器设置</span></button>
             <div class="menu-sep"></div>
             <button class="menu-item danger" data-action="quit-app"><span class="mi">⏻</span><span class="mi-text">退出 GinyVoC</span></button>
             <div class="menu-sep"></div>
@@ -223,6 +225,32 @@
       <p class="dim">WebRTC mesh P2P · 服务器零媒体成本</p>
       <div class="modal-actions">
         <button id="btn-about-close" class="btn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 服务器设置 -->
+  <div id="modal-server" class="modal" hidden>
+    <div class="modal-card">
+      <h3>🖧 服务器设置</h3>
+      <div class="field">
+        <label><input type="radio" name="server-mode" id="server-mode-local" checked /> 本机开服（把本机地址发给好友）</label>
+      </div>
+      <div class="field">
+        <label><input type="radio" name="server-mode" id="server-mode-remote" /> 连接朋友的服务器</label>
+      </div>
+      <div class="field" id="server-address-field" hidden>
+        <label>服务器地址（IP 或 域名:端口）</label>
+        <input id="server-address" type="text" placeholder="如 10.147.17.1:3000" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label>本机可访问地址（发给好友）</label>
+        <div id="server-local-urls" class="server-urls dim"></div>
+      </div>
+      <p class="hint">跨网络联机推荐 ZeroTier 组网：所有人加入同一虚拟网络后，开服的人把「本机可访问地址」发给好友，好友选择「连接朋友的服务器」填入即可（切换后应用会自动重启）。</p>
+      <div class="modal-actions">
+        <button id="btn-server-cancel" class="btn">取消</button>
+        <button id="btn-server-save" class="btn primary">保存并重启</button>
       </div>
     </div>
   </div>

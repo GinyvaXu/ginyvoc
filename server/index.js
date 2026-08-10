@@ -7,7 +7,7 @@ import { logger } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '::';   // 双栈监听（IPv4 + IPv6）
 const useHttps = process.env.HTTPS === '1';
 
 // STUN/TURN 配置: 默认 Google STUN; 自建 TURN 通过环境变量注入
@@ -48,7 +48,8 @@ function getLanAddresses() {
   const nets = [];
   for (const list of Object.values(networkInterfaces())) {
     for (const net of list ?? []) {
-      if (net.family === 'IPv4' && !net.internal) nets.push(net.address);
+      if (net.internal || net.address === '::1' || net.address.startsWith('fe80')) continue;
+      nets.push(net.family === 'IPv6' ? `[${net.address}]` : net.address);
     }
   }
   return nets;
