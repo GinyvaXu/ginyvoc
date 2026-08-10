@@ -12,7 +12,7 @@ client/    Web 客户端（原生 ES Modules，无构建步骤）
 desktop/   Electron 桌面壳（主进程 main.js + 自动更新 updater.js + preload.cjs）
 assets/    应用图标（icon.png / icon.ico / tray.png，由 scripts/gen-icon.mjs 生成）
 scripts/   构建/测试/导出/归档脚本（build-debug.mjs 构建 Debug 版 exe）
-docs/      调研报告与网络连接实现说明
+docs/      调研报告 / 网络架构 / 联机方案(fri-network.md) / 功能差距
 source/     需求文档
 build/     构建temp（electron-builder 输出，不入库）
 installer/ 交付 exe（不入库，走 GitHub Releases）
@@ -51,7 +51,7 @@ npm run archive         # 发布归档：产物/源码快照到 versions/vX.Y.Z/
 - 局域网/公网需 HTTPS 与 TURN，见 README「局域网使用」「公网使用」
 
 ## 当前状态
-- 版本：v0.6.0（本轮：跨网络联机——服务器设置 本机开服/连朋友、双栈监听、ZeroTier/IPv6 直连；此前：VAD 修复/托盘退出/双击进频道/OBS 共享）
+- 版本：v0.6.0（本轮：跨网络联机——服务器设置 本机开服/连朋友、双栈监听、SakuraFrp 穿透 + 蒲公英/米西/ZeroTier 组网、打洞失败诊断；此前：VAD 修复/托盘退出/双击进频道/OBS 共享）
 - 分支：main（稳定）/ develop（日常开发）
 - 远程：https://github.com/GinyvaXu/ginyvoc（公开，自动更新依赖公开访问 update.json 与 Releases 资产）
 - 自动更新：桌面安装版内置 updater.js（多源清单 + NSIS 静默升级），清单为根目录 update.json

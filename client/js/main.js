@@ -235,6 +235,11 @@ ui.onChannelClick = async (channelId) => {
     onPeerScreen,
     onPeerScreenStop: (peerId) => ui.removeScreenTile(peerId),
     onPeerState: (peerId, conn) => {
+      if (conn === 'failed') {
+        // 打洞失败诊断：内网穿透/公网直连场景下最常见“能进房但没声音”
+        const peer = state.roomState?.users.find((u) => u.id === peerId);
+        ui.toast(`与「${peer?.username ?? '对方'}」的语音连接失败：公网打洞未成功。建议双方使用蒲公英/米西/ZeroTier 组网后再试，或检查防火墙放行。`, 6000);
+      }
       if (['disconnected', 'failed', 'closed'].includes(conn)) {
         ui.removeScreenTile(peerId);
         const el = peerAudio.get(peerId);
