@@ -1,7 +1,7 @@
 {
-  "name": "kaihei-radio",
-  "version": "0.3.0",
-  "description": "开黑电台 (Kaihei Radio) - game voice chat with channels & screen sharing (WebRTC mesh + Socket.IO signaling)",
+  "name": "ginyvoc",
+  "version": "0.4.0",
+  "description": "GinyVoC - game voice chat with channels & screen sharing (WebRTC mesh + Socket.IO signaling)",
   "main": "desktop/main.js",
   "type": "module",
   "private": true,
@@ -11,6 +11,7 @@
     "electron": "node node_modules/electron/cli.js desktop/main.js",
     "icon": "node scripts/gen-icon.mjs",
     "dist": "node scripts/sync-version.mjs && node node_modules/electron-builder/cli.js --win",
+    "dist:debug": "node scripts/sync-version.mjs && node scripts/build-debug.mjs",
     "dist:portable": "node scripts/sync-version.mjs && node node_modules/electron-builder/cli.js --win portable",
     "dist:installer": "node scripts/sync-version.mjs && node node_modules/electron-builder/cli.js --win nsis",
     "finalize": "node scripts/export-electron.mjs",
@@ -31,9 +32,9 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "com.kaihei.radio",
-    "productName": "开黑电台",
-    "copyright": "Copyright (c) 2026 Kaihei Radio",
+    "appId": "com.ginyvoc.app",
+    "productName": "GinyVoC",
+    "copyright": "Copyright (c) 2026 GinyVoC",
     "asar": true,
     "directories": {
       "output": "build",
@@ -54,13 +55,13 @@
       "icon": "assets/icon.ico"
     },
     "portable": {
-      "artifactName": "开黑电台-便携版-v${version}.exe"
+      "artifactName": "GinyVoC-Portable-v${version}.exe"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "开黑电台-安装版-v${version}.exe"
+      "artifactName": "GinyVoC-Setup-v${version}.exe"
     }
   }
 }

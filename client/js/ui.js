@@ -10,7 +10,7 @@ export const ui = {
   // ---------- 房间 ----------
   renderRoom(state) {
     this.roomState = state;
-    this.$('#room-code').textContent = state.id;
+    this.$('#room-code').innerHTML = `房间号 <b>${state.id}</b>`;
     this._renderChannels(state);
     this._renderMembers(state);
   },

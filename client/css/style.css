@@ -1,4 +1,4 @@
-/* 开黑电台 — 暗色主题 (参考 Discord 风格) */
+/* GinyVoC — 暗色主题 (参考 Discord 风格) */
 :root {
   --bg: #1e1f22;
   --bg-deep: #141517;
@@ -284,6 +284,30 @@ kbd {
 .radio-row { display: flex; flex-direction: column; gap: 6px; }
 .radio-row label { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: 13px; }
 .modal-actions { text-align: right; margin-top: 18px; }
+
+/* 更新弹窗 */
+.update-info { margin-top: 10px; }
+.update-versions { font-size: 14px; color: var(--text); }
+.update-versions b { color: var(--yellow); }
+.update-notes {
+  margin-top: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+.update-notes pre {
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.7;
+  margin: 0;
+}
+
 .toast {
   position: fixed;
   bottom: 64px;

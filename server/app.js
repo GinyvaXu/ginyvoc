@@ -16,7 +16,7 @@ let version = '0.0.0';
 try { version = readFileSync(join(__dirname, '..', 'VERSION'), 'utf8').trim(); } catch { /* 快照/打包缺失时用默认值 */ }
 
 /**
- * 启动开黑电台服务器（HTTP/Socket.IO + 静态客户端）
+ * 启动GinyVoC服务器（HTTP/Socket.IO + 静态客户端）
  * @param {object} opts
  * @param {number}  [opts.port=3000]       监听端口
  * @param {string}  [opts.host='0.0.0.0']  监听地址
@@ -25,7 +25,7 @@ try { version = readFileSync(join(__dirname, '..', 'VERSION'), 'utf8').trim(); }
  * @param {boolean} [opts.retryOnBusy=false] 端口占用时自动 +1 重试（桌面壳用）
  * @returns {Promise<{server, io, app, port}>}
  */
-export async function startKaiheiServer(opts = {}) {
+export async function startGinyVocServer(opts = {}) {
   const port = opts.port ?? 3000;
   const host = opts.host ?? '0.0.0.0';
   const useHttps = opts.useHttps ?? false;
@@ -52,7 +52,7 @@ export async function startKaiheiServer(opts = {}) {
 
   let server;
   if (useHttps) {
-    const certDir = join(__dirname, '..', '中间产物', 'certs');
+    const certDir = join(__dirname, '..', 'temp', 'certs');
     const keyPath = join(certDir, 'key.pem');
     const certPath = join(certDir, 'cert.pem');
     if (!existsSync(keyPath) || !existsSync(certPath)) {

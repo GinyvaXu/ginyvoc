@@ -3,6 +3,24 @@
 本项目遵循语义化版本（Semantic Versioning），版本号以根目录 `VERSION` 文件为唯一来源。
 版本发布流程见 `VERSIONING.md`。
 
+## [v0.4.0] - 2026-08-10
+
+### 新增
+- 项目正式更名 **GinyVoC**，全链路清理旧名称残留（含需求文档、函数名、产物命名）
+- Debug 版 exe 构建流程（`npm run dist:debug`）：控制台 + 实时日志 + DevTools，每次迭代必出
+- 自动更新：桌面安装版支持 帮助→检查更新 / 启动后台检查；多源清单（raw GitHub / 国内代理 / jsDelivr / Releases API）+ NSIS 静默升级 + 自动重启（参考诺丁汉桌游项目）
+- `update.json` 自动更新清单（随 git 推送）；`desktop/updater.js` + `desktop/preload.cjs`
+- 崩溃报告：主进程/渲染进程未捕获异常写 `crash_时间戳_类型.txt`
+- 新增 docs/gap-analysis.md（功能差距分析）与 docs/tech-alternatives.md（技术路线替代方案对比）
+
+### 修复
+- 房间号显示被 renderRoom 覆盖（丢失“房间号”前缀样式）
+- 帮助菜单“检查更新”入口与更新弹窗；favicon 缺失导致 404
+
+### 规范
+- 构建产物与目录全部英文命名（GinyVoC-Debug/Portable/Setup-vX.Y.Z.exe）；历史中文产物已重命名
+- 版本号单一来源维持 VERSION；发布流程补充 debug 版前置步骤
+
 ## [v0.3.0] - 2026-08-09
 
 ### 新增

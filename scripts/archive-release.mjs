@@ -16,19 +16,21 @@ mkdirSync(srcDir, { recursive: true });
 mkdirSync(distDir, { recursive: true });
 mkdirSync(instDir, { recursive: true });
 
-// 1) 构建产物：build\ 下的 exe → installer\；便携版另复制到 dist\
+// 1) 构建产物：build\ 与 build\debug\ 下的 exe → installer\；便携版/Debug 版另复制到 dist\
 const buildDir = join(root, 'build');
-if (existsSync(buildDir)) {
-  for (const f of readdirSync(buildDir)) {
+const exeDirs = [buildDir, join(buildDir, 'debug')];
+for (const dir of exeDirs) {
+  if (!existsSync(dir)) continue;
+  for (const f of readdirSync(dir)) {
     if (!/\.exe$/.test(f)) continue;
-    const src = join(buildDir, f);
+    const src = join(dir, f);
     cpSync(src, join(instDir, f));
-    if (/便携版/.test(f)) cpSync(src, join(distDir, f));
+    if (/Portable|Debug/.test(f)) cpSync(src, join(distDir, f));
   }
 }
 
 // 2) 源码快照：排除构建产物、依赖、归档目录
-const EXCLUDE = new Set(['.git', 'node_modules', 'build', 'dist', 'installer', 'logs', 'versions', '成品', '中间产物']);
+const EXCLUDE = new Set(['.git', 'node_modules', 'build', 'dist', 'installer', 'logs', 'versions', 'release', 'temp']);
 function copyFilter(s) {
   const rel = s.slice(root.length + 1);
   return !EXCLUDE.has(rel.split(/[\\/]/)[0]);

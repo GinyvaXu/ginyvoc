@@ -35,7 +35,7 @@ let pttCapturing = false;
 let micReady = false;
 
 // ---------- 启动 ----------
-window.__kaiheiBoot = false;
+window.__ginyvocBoot = false;
 window.addEventListener('error', (e) => {
   const el = ui.$('#lobby-error');
   el.textContent = `JS错误: ${e.message}`;
@@ -54,9 +54,9 @@ window.addEventListener('unhandledrejection', (e) => {
 async function boot() {
   const res = await fetch('/api/config');
   config = await res.json();
-  console.log('[kaihei] config ok');
+  console.log('[ginyvoc] config ok');
 
-  console.log('[kaihei] creating signaling');
+  console.log('[ginyvoc] creating signaling');
   signal = createSignaling({
     onRoomState: onRoomState,
     onUserJoined: ({ user }) => { if (state.channelId && mesh) mesh.addPeer(user); },
@@ -72,15 +72,16 @@ async function boot() {
   wireChat();
   wirePtt();
   wireMenu();
-  window.__kaiheiBoot = true;
-  console.log('[kaihei] boot done');
+  ui.$('#menu-debug-state').textContent = window.gvDesktop ? '桌面版 · 日志见 exe 旁 logs 目录' : '浏览器版 · 日志见服务端日志目录';
+  window.__ginyvocBoot = true;
+  console.log('[ginyvoc] boot done');
 }
 
 // ---------- 房间进入 ----------
 function wireLobby() {
   const nameInput = ui.$('#input-username');
-  nameInput.value = localStorage.getItem('kaihei:username') || '';
-  const saveName = () => localStorage.setItem('kaihei:username', nameInput.value.trim());
+  nameInput.value = localStorage.getItem('ginyvoc:username') || '';
+  const saveName = () => localStorage.setItem('ginyvoc:username', nameInput.value.trim());
 
   ui.$('#btn-create').addEventListener('click', async () => {
     saveName();
@@ -390,6 +391,7 @@ const MENU_ACTIONS = {
   'open-settings': () => openSettings(),
   'open-shortcuts': () => openShortcuts(),
   'open-about': () => openAbout(),
+  'check-update': () => checkUpdate(),
 };
 
 function wireMenu() {
@@ -440,10 +442,71 @@ function wireMenu() {
 
   ui.$('#btn-shortcuts-close').addEventListener('click', () => { ui.$('#modal-shortcuts').hidden = true; });
   ui.$('#btn-about-close').addEventListener('click', () => { ui.$('#modal-about').hidden = true; });
+
+  // 更新弹窗
+  ui.$('#btn-update-cancel').addEventListener('click', () => { ui.$('#modal-update').hidden = true; });
+  ui.$('#btn-update-now').addEventListener('click', applyUpdate);
+  window.gvDesktop?.onUpdateProgress(({ stage }) => {
+    ui.$('#update-status').textContent = stage;
+    ui.$('#menu-update-state').textContent = `更新：${stage}`;
+  });
+  window.gvDesktop?.onUpdateAvailable((r) => {
+    ui.$('#menu-update-state').textContent = `发现新版本 v${r.latest}`;
+    ui.toast(`发现新版本 v${r.latest}，可在 帮助 → 检查更新 中查看`);
+  });
 }
 
 function closeMenus() {
   document.querySelectorAll('.menu.open').forEach((m) => m.classList.remove('open'));
+}
+
+// ---------- 自动更新 ----------
+async function checkUpdate() {
+  const modal = ui.$('#modal-update');
+  modal.hidden = false;
+  ui.$('#update-info').hidden = true;
+  ui.$('#btn-update-now').hidden = true;
+  ui.$('#update-status').textContent = '检查更新中…';
+  if (!window.gvDesktop) {
+    ui.$('#update-status').textContent = '当前为浏览器版：更新请重新拉取最新代码，或下载最新桌面版 exe。';
+    ui.$('#menu-update-state').textContent = '更新：浏览器版无需检查';
+    return;
+  }
+  const r = await window.gvDesktop.checkUpdate();
+  renderUpdateResult(r);
+}
+
+function renderUpdateResult(r) {
+  if (!r || !r.ok) {
+    ui.$('#update-status').textContent = r?.detail || '检查更新失败，请检查网络后重试';
+  } else if (r.hasUpdate) {
+    ui.$('#update-status').textContent = `发现新版本 v${r.latest}`;
+    ui.$('#update-info').hidden = false;
+    ui.$('#update-cur').textContent = `v${r.current}`;
+    ui.$('#update-new').textContent = `v${r.latest}`;
+    const notes = ui.$('#update-notes');
+    notes.innerHTML = '';
+    const pre = document.createElement('pre');
+    pre.textContent = (r.notes || '').slice(0, 1000) || '（本次更新无说明）';
+    notes.appendChild(pre);
+    ui.$('#btn-update-now').hidden = false;
+  } else {
+    ui.$('#update-status').textContent = `已是最新版本 v${r.current}`;
+    ui.$('#update-info').hidden = true;
+    ui.$('#btn-update-now').hidden = true;
+  }
+  ui.$('#menu-update-state').textContent = `更新：${ui.$('#update-status').textContent}`;
+}
+
+async function applyUpdate() {
+  if (!window.gvDesktop) return;
+  const btn = ui.$('#btn-update-now');
+  btn.disabled = true;
+  ui.$('#update-status').textContent = '正在准备更新…';
+  const r = await window.gvDesktop.applyUpdate();
+  if (r?.message) ui.$('#update-status').textContent = r.message;
+  if (r && !r.ok && r.message) ui.$('#update-status').textContent = r.message;
+  btn.disabled = false;
 }
 
 function updateMenuUI() {
@@ -641,9 +704,9 @@ function wireSettings() {
 const urlParams = new URLSearchParams(location.search);
 if (urlParams.get('room')) ui.$('#input-room').value = urlParams.get('room');
 
-// 自动测试钩子: ?kaihei_test=1 自动建房(或 ?join=房间号 加入)并进频道
+// 自动测试钩子: ?ginyvoc_test=1 自动建房(或 ?join=房间号 加入)并进频道
 // 仅用于自动化验证，正常使用不受影响
-if (new URLSearchParams(location.search).has('kaihei_test')) {
+if (new URLSearchParams(location.search).has('ginyvoc_test')) {
   const params = new URLSearchParams(location.search);
   setTimeout(async () => {
     ui.$('#input-username').value = params.get('name') || '测试玩家';

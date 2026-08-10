@@ -1,7 +1,7 @@
-# 开黑电台 需求说明
+# GinyVoC 需求说明
 
 ## 项目目标
-做一个"联机游戏语音频道 + 屏幕共享"一体的语音软件（kaihei-radio），参考 Discord / Mumble /
+做一个"联机游戏语音频道 + 屏幕共享"一体的语音软件（GinyVoC），参考 Discord / Mumble /
 TeamSpeak 等现有产品与 GitHub 开源库，先做可自托管、可运行的 Web 版，后续可打包桌面端。
 
 ## 核心需求
@@ -39,4 +39,4 @@ TeamSpeak 等现有产品与 GitHub 开源库，先做可自托管、可运行�
 5. `node scripts/smoke-test.mjs` 12 项断言全部通过。
 
 ## 范围外（路线图）
-TURN 部署文档、SFU 扩容、降噪增强(RNNoise)、账号/权限、录音、Electron 桌面封装、移动端。
+TURN 部署文档、SFU 扩容、降噪增强(RNNoise)、账号/权限、录音、移动端。

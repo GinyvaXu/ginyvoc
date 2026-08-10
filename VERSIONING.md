@@ -1,4 +1,4 @@
-# 版本管理规范 — 开黑电台
+# 版本管理规范 — GinyVoC
 
 > 本项目遵循 `project-git-mgmt` 通用 Git 版本管理规范。
 
@@ -30,11 +30,11 @@ develop ───●────●───●────●───●──
 ## 发布流程（新版本 vX.Y.Z）
 
 1. **Preflight**：`git status --porcelain` 干净、`git fetch` 后与远端无冲突、无密钥/敏感文件
-2. **改版本**：只改 `VERSION` 文件 → `npm run dist:portable` / `npm run dist:installer`（构建前自动同步版本号）
+2. **改版本**：只改 `VERSION` 文件；**每次迭代先构建 Debug 版**：`npm run dist:debug`（供试用/报障）→ 功能验证通过后再 `npm run dist:portable` / `npm run dist:installer`（构建前自动同步版本号）
 3. **归档**：`npm run archive` — 构建产物复制到 `versions/vX.Y.Z/dist|installer`，源码快照到 `versions/vX.Y.Z/src`
 4. **两次提交**：
    ```bash
-   git add server/ client/ desktop/ scripts/ assets/ docs/ 源文件/ README.md package.json VERSION CHANGELOG.md AGENTS.md
+   git add server/ client/ desktop/ scripts/ assets/ docs/ source/ README.md package.json VERSION CHANGELOG.md AGENTS.md
    git commit -m "release: vX.Y.Z"
    git add versions/vX.Y.Z/src/
    git commit -m "build: vX.Y.Z 源码快照归档"
@@ -48,6 +48,7 @@ develop ───●────●───●────●───●──
    git push origin vX.Y.Z
    ```
 6. **上传安装包**：`installer\*.exe` 上传到 GitHub Releases（`gh release create vX.Y.Z ...`）
+7. **更新清单**：发布后更新根目录 `update.json` 的 version/url/notes（客户端自动更新据此工作）
 
 ## 产物清理
 
@@ -59,5 +60,7 @@ develop ───●────●───●────●───●──
 
 | 版本 | 说明 |
 |------|------|
+| v0.4.0 | 更名 GinyVoC；新增 Debug 版 exe 构建（dist:debug）与自动更新（update.json + updater.js）；顶部菜单/弹窗修复；产物全英文命名 |
+| v0.3.0 | 顶部菜单栏统筹全部功能；完整设置/快捷键/关于面板 |
 | v0.2.0 | 新增 Electron 桌面版：内嵌信令服务器、系统托盘、最小化到托盘、日志落盘；新增便携版 / 安装版 exe 构建；新增 assets 图标与 build/installer/versions 目录规范 |
 | v0.1.0 | 首个可用版本：WebRTC mesh 语音 + 屏幕共享 + 文字聊天；Debug 版日志系统与自包含导出包 |

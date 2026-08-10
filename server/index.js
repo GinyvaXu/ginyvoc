@@ -1,8 +1,8 @@
-// index.js — kaihei-radio 信令服务器 CLI 入口（复用 app.js 的可嵌入启动函数）
+// index.js — ginyvoc 信令服务器 CLI 入口（复用 app.js 的可嵌入启动函数）
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { networkInterfaces } from 'node:os';
-import { startKaiheiServer } from './app.js';
+import { startGinyVocServer } from './app.js';
 import { logger } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,7 +21,7 @@ if (TURN_URL && TURN_USER && TURN_PASS) {
 
 let serverHandle;
 try {
-  serverHandle = await startKaiheiServer({ port: PORT, host: HOST, useHttps, iceServers });
+  serverHandle = await startGinyVocServer({ port: PORT, host: HOST, useHttps, iceServers });
 } catch (err) {
   logger.error('服务器启动失败:', err);
   process.exit(1);
@@ -30,8 +30,8 @@ try {
 const { server, port } = serverHandle;
 const proto = useHttps ? 'https' : 'http';
 logger.work('══════════════════════════════════════════');
-logger.work('  📻 开黑电台 语音服务器已启动 (Debug 版日志已开启)');
-logger.work(`  日志目录: ${process.env.LOG_DIR || join(process.cwd(), '中间产物', 'logs')}`);
+logger.work('  📻 GinyVoC 语音服务器已启动 (Debug 版日志已开启)');
+logger.work(`  日志目录: ${process.env.LOG_DIR || join(process.cwd(), 'temp', 'logs')}`);
 logger.work(`  本机: ${proto}://localhost:${port}`);
 const nets = getLanAddresses();
 if (nets.length) {

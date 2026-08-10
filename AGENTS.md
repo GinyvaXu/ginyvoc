@@ -1,4 +1,4 @@
-# AGENTS.md — 开黑电台（kaihei-radio）项目规则与状态
+# AGENTS.md — GinyVoC（ginyvoc）项目规则与状态
 
 ## 项目简介
 自托管的联机游戏语音软件：语音频道 + 屏幕共享 + 房间文字聊天。
@@ -9,17 +9,18 @@
 ```
 server/    信令服务器（index.js CLI 入口 / app.js 可嵌入启动函数 / rooms.js / signaling.js / logger.js）
 client/    Web 客户端（原生 ES Modules，无构建步骤）
-desktop/   Electron 桌面壳（主进程）
+desktop/   Electron 桌面壳（主进程 main.js + 自动更新 updater.js + preload.cjs）
 assets/    应用图标（icon.png / icon.ico / tray.png，由 scripts/gen-icon.mjs 生成）
-scripts/   构建/测试/导出/归档脚本
+scripts/   构建/测试/导出/归档脚本（build-debug.mjs 构建 Debug 版 exe）
 docs/      调研报告与网络连接实现说明
-源文件/     需求文档
-build/     构建中间产物（electron-builder 输出，不入库）
+source/     需求文档
+build/     构建temp（electron-builder 输出，不入库）
 installer/ 交付 exe（不入库，走 GitHub Releases）
 logs/      运行日志（不入库）
 versions/  版本归档：vX.Y.Z/src 源码快照入库；dist/installer 二进制不入库
-成品/      浏览器版 Debug 自包含导出包（不入库）
-中间产物/   证书等中间文件（不入库）
+release/      浏览器版 Debug 自包含导出包（不入库）
+temp/   证书等中间文件（不入库）
+update.json   自动更新清单（版本/下载地址/更新说明，随 git 推送）
 ```
 
 ## 常用命令
@@ -28,6 +29,7 @@ npm start               # 浏览器版：启动信令服务器（http://localhos
 npm run electron        # 桌面版开发运行
 npm test                # 信令冒烟测试（12 项断言，需先 npm start）
 npm run icon            # 重新生成图标
+npm run dist:debug      # 构建 Debug 版 exe（控制台+日志+DevTools，每次迭代必出）
 npm run dist:portable   # 构建便携版 exe（构建前自动从 VERSION 同步版本号）
 npm run dist:installer  # 构建安装版 exe
 npm run finalize        # 复制 build\ 下的 exe 到 installer\
@@ -38,7 +40,7 @@ npm run archive         # 发布归档：产物/源码快照到 versions/vX.Y.Z/
 - 分支模型：`main` 只接受来自 `develop` 的合并（--no-ff）；日常开发在 `develop`，不额外建 feature 分支
 - 版本号单一来源：只改 `VERSION` 文件；构建脚本（sync-version.mjs）自动同步到 package.json，禁止手写
 - 提交规范：`feat:` / `fix:` / `release:` / `build:` / `chore:` / `refactor:` / `docs:` / `test:`，一个 commit 只做一件事；源码与产物分开提交
-- 发布流程：改 VERSION → 构建（dist:portable / dist:installer）→ `npm run archive` 归档到 versions/vX.Y.Z → `release:` 提交源码、`build:` 提交归档 → 合并 main → 打 tag + 上传 installer 到 GitHub Releases → 清理本地旧二进制（保留最近 1~2 版）
+- 发布流程：改 VERSION → 每次迭代先构建 Debug 版（`npm run dist:debug`）供试用；功能验证通过后再构建便携版/安装版（dist:portable / dist:installer）→ `npm run archive` 归档到 versions/vX.Y.Z → `release:` 提交源码、`build:` 提交归档 → 合并 main → 打 tag + 上传 installer 到 GitHub Releases → 更新 update.json 清单 → 清理本地旧二进制（保留最近 1~2 版）
 - 变更记录写 CHANGELOG.md；版本管理规范见 VERSIONING.md
 
 ## 注意事项
@@ -49,7 +51,9 @@ npm run archive         # 发布归档：产物/源码快照到 versions/vX.Y.Z/
 - 局域网/公网需 HTTPS 与 TURN，见 README「局域网使用」「公网使用」
 
 ## 当前状态
-- 版本：v0.2.0（已发布，含桌面版 exe）
+- 版本：v0.4.0（开发中：改名 GinyVoC 收尾 / Debug 版 exe / 自动更新 / 菜单与界面修复）
 - 分支：main（稳定）/ develop（日常开发）
-- 远程：https://github.com/GinyvaXu/kaihei-radio（私有）
-- 待办与路线图见 源文件/需求说明.md 与 docs/调研报告.md
+- 远程：https://github.com/GinyvaXu/ginyvoc（私有）
+- 自动更新：桌面安装版内置 updater.js（多源清单 + NSIS 静默升级），清单为根目录 update.json
+- 构建产物一律英文命名（GinyVoC-Debug/Portable/Setup-vX.Y.Z.exe）；目录不含中文
+- 待办与路线图见 source/requirements.md 与 docs/gap-analysis.md

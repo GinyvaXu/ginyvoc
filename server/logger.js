@@ -3,7 +3,7 @@
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const logDir = process.env.LOG_DIR || join(process.cwd(), '中间产物', 'logs');
+const logDir = process.env.LOG_DIR || join(process.cwd(), 'temp', 'logs');
 try { mkdirSync(logDir, { recursive: true }); } catch { /* 目录不可建时只打控制台 */ }
 
 const stamp = () => new Date().toISOString().replace('T', ' ').slice(0, 23);

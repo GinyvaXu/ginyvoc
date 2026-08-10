@@ -4,8 +4,8 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 const version = 'v' + readFileSync(join(root, 'VERSION'), 'utf8').trim();
-const outDir = join(root, '成品', `Debug版-${version}`);
-const serverDir = join(outDir, '开黑电台服务器');
+const outDir = join(root, 'release', `Debug-${version}`);
+const serverDir = join(outDir, 'GinyVoC-Server');
 
 // 安全校验：输出目录必须在项目根内
 if (!outDir.startsWith(root)) throw new Error('输出目录不在项目根内');
@@ -14,8 +14,8 @@ if (!outDir.startsWith(root)) throw new Error('输出目录不在项目根内');
 if (existsSync(outDir)) rmSync(outDir, { recursive: true, force: true });
 mkdirSync(serverDir, { recursive: true });
 
-// 复制代码（排除 .git / 成品 / 中间产物 / node_modules）
-const EXCLUDE = new Set(['.git', '成品', '中间产物', 'node_modules', 'build', 'installer', 'versions', 'dist', 'logs']);
+// 复制代码（排除 .git / release / temp / node_modules）
+const EXCLUDE = new Set(['.git', 'release', 'temp', 'node_modules', 'build', 'installer', 'versions', 'dist', 'logs']);
 function copyFilter(src) {
   const rel = src.slice(root.length + 1);
   return !EXCLUDE.has(rel.split(/[\\/]/)[0]);
@@ -32,16 +32,16 @@ if (!existsSync(nmSrc)) throw new Error('缺少 node_modules，请先 npm instal
 cpSync(nmSrc, join(serverDir, 'node_modules'), { recursive: true });
 
 // 启动脚本（UTF-8 无 BOM）
-const bat = `@echo off\r\nchcp 65001 >nul\r\ntitle 开黑电台 Debug 服务器\r\ncd /d "%~dp0开黑电台服务器"\r\nif not exist "%~dp0logs" mkdir "%~dp0logs"\r\nset NODE_ENV=debug\r\nset LOG_DIR=%~dp0logs\r\necho ==================================================\r\necho   开黑电台 Debug 版\r\necho   工作日志: %~dp0logs\\work-日期.log\r\necho   报错日志: %~dp0logs\\error-日期.log\r\necho   启动后请打开浏览器: http://localhost:3000\r\necho   关闭本窗口即停止服务器\r\necho ==================================================\r\nstart "" http://localhost:3000\r\nnode server/index.js\r\necho.\r\necho 服务器已退出。按任意键关闭窗口...\r\npause >nul\r\n`;
-writeFileSync(join(outDir, '启动开黑电台-Debug版.bat'), bat, 'utf8');
+const bat = `@echo off\r\nchcp 65001 >nul\r\ntitle GinyVoC Debug Server\r\ncd /d "%~dp0GinyVoC-Server"\r\nif not exist "%~dp0logs" mkdir "%~dp0logs"\r\nset NODE_ENV=debug\r\nset LOG_DIR=%~dp0logs\r\necho ==================================================\r\necho   GinyVoC Debug\r\necho   工作日志: %~dp0logs\\work-日期.log\r\necho   报错日志: %~dp0logs\\error-日期.log\r\necho   启动后请打开浏览器: http://localhost:3000\r\necho   关闭本窗口即停止服务器\r\necho ==================================================\r\nstart "" http://localhost:3000\r\nnode server/index.js\r\necho.\r\necho 服务器已退出。按任意键关闭窗口...\r\npause >nul\r\n`;
+writeFileSync(join(outDir, 'Start-GinyVoC-Debug.bat'), bat, 'utf8');
 
-const logBat = `@echo off\r\nchcp 65001 >nul\r\nif not exist "%~dp0logs" (\r\n  echo 还没有日志文件，请先运行"启动开黑电台-Debug版.bat"。\r\n  pause\r\n  exit /b\r\n)\r\nexplorer "%~dp0logs"\r\n`;
-writeFileSync(join(outDir, '查看日志.bat'), logBat, 'utf8');
+const logBat = `@echo off\r\nchcp 65001 >nul\r\nif not exist "%~dp0logs" (\r\n  echo 还没有日志文件，请先运行"Start-GinyVoC-Debug.bat"。\r\n  pause\r\n  exit /b\r\n)\r\nexplorer "%~dp0logs"\r\n`;
+writeFileSync(join(outDir, 'Open-Logs.bat'), logBat, 'utf8');
 
-const readme = `【开黑电台 Debug 版 ${version}】
+const readme = `【GinyVoC Debug ${version}】
 
 一、怎么启动
-  双击"启动开黑电台-Debug版.bat"，会自动：
+  双击"Start-GinyVoC-Debug.bat"，会自动：
   1. 启动服务器（需已安装 Node.js 18+）
   2. 打开浏览器 http://localhost:3000
   3. 开始记录日志
@@ -50,7 +50,7 @@ const readme = `【开黑电台 Debug 版 ${version}】
   本目录 logs\\ 下：
   - work-日期.log   工作日志：服务器启动、连接、建房/加房、进出频道、信令明细等
   - error-日期.log  报错日志：服务器异常 + 浏览器端 JS 错误（自动上报）
-  可双击"查看日志.bat"直接打开日志文件夹。
+  可双击"Open-Logs.bat"直接打开日志文件夹。
 
 三、试用步骤
   1. 浏览器打开 http://localhost:3000
@@ -66,7 +66,7 @@ const readme = `【开黑电台 Debug 版 ${version}】
 五、反馈
   把 logs 文件夹（或其中的 work/error 日志）发回来即可定位问题。
 `;
-writeFileSync(join(outDir, '使用说明-Debug版.txt'), readme, 'utf8');
+writeFileSync(join(outDir, 'README-Debug.txt'), readme, 'utf8');
 
 console.log('导出完成:');
 console.log('  目录: ' + outDir);

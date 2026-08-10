@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>开黑电台 · 联机语音</title>
+  <title>GinyVoC · 联机语音</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/menu.css" />
 </head>
@@ -11,7 +12,7 @@
   <!-- 进入页 -->
   <section id="screen-lobby" class="screen lobby">
     <div class="lobby-card">
-      <div class="logo">📻 开黑电台</div>
+      <div class="logo">📻 GinyVoC</div>
       <p class="tagline">联机游戏语音频道 · 屏幕共享</p>
       <div class="field">
         <label>昵称</label>
@@ -34,7 +35,7 @@
   <section id="screen-app" class="screen app" hidden>
     <header class="topbar">
       <div class="room-info">
-        <span class="room-name">📻 开黑电台</span>
+        <span class="room-name">📻 GinyVoC</span>
         <span id="room-code" class="room-code" title="点击复制房间号">房间号 <b>--</b></span>
         <span id="conn-status" class="conn-status ok">● 已连接</span>
       </div>
@@ -93,9 +94,11 @@
           <button class="menu-btn" type="button">帮助 <span class="caret">▾</span></button>
           <div class="menu-panel" id="menu-help">
             <button class="menu-item" data-action="open-shortcuts"><span class="mi">⌨️</span><span class="mi-text">快捷键说明</span></button>
-            <button class="menu-item" data-action="open-about"><span class="mi">📻</span><span class="mi-text">关于开黑电台</span></button>
+            <button class="menu-item" data-action="open-about"><span class="mi">📻</span><span class="mi-text">关于GinyVoC</span></button>
+            <button class="menu-item" data-action="check-update"><span class="mi">🔄</span><span class="mi-text">检查更新</span></button>
             <div class="menu-sep"></div>
-            <div class="menu-info-row">Debug 版日志已开启</div>
+            <div class="menu-info-row" id="menu-debug-state"></div>
+            <div class="menu-info-row" id="menu-update-state">更新：未检查</div>
           </div>
         </div>
       </nav>
@@ -198,12 +201,28 @@
   <div id="modal-about" class="modal" hidden>
     <div class="modal-card about-card">
       <div class="about-logo">📻</div>
-      <h3>开黑电台</h3>
+      <h3>GinyVoC</h3>
       <p class="dim">版本 <span id="about-version">--</span></p>
       <p class="dim">联机游戏语音频道 · 屏幕共享 · 房间文字聊天</p>
       <p class="dim">WebRTC mesh P2P · 服务器零媒体成本</p>
       <div class="modal-actions">
         <button id="btn-about-close" class="btn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 软件更新 -->
+  <div id="modal-update" class="modal" hidden>
+    <div class="modal-card">
+      <h3>🔄 软件更新</h3>
+      <p id="update-status" class="dim">检查更新中…</p>
+      <div id="update-info" class="update-info" hidden>
+        <p class="update-versions">当前版本 <b id="update-cur">--</b> → 新版本 <b id="update-new">--</b></p>
+        <div id="update-notes" class="update-notes"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-update-now" class="btn primary" hidden>立即更新</button>
+        <button id="btn-update-cancel" class="btn">取消</button>
       </div>
     </div>
   </div>

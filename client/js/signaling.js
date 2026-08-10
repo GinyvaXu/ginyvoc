@@ -3,8 +3,8 @@ import { io } from '/vendor/socket.io/socket.io.esm.min.js';
 
 export function createSignaling(handlers) {
   const socket = io({ transports: ['websocket', 'polling'] });
-  socket.on('connect', () => console.log('[kaihei] socket connected', socket.id));
-  socket.on('connect_error', (e) => console.log('[kaihei] socket connect_error', e.message));
+  socket.on('connect', () => console.log('[ginyvoc] socket connected', socket.id));
+  socket.on('connect_error', (e) => console.log('[ginyvoc] socket connect_error', e.message));
 
   socket.on('room:state', (state) => handlers.onRoomState?.(state));
   socket.on('user:joined', (payload) => handlers.onUserJoined?.(payload));

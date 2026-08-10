@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const certDir = join(__dirname, '..', '中间产物', 'certs');
+const certDir = join(__dirname, '..', 'temp', 'certs');
 const keyPath = join(certDir, 'key.pem');
 const certPath = join(certDir, 'cert.pem');
 
