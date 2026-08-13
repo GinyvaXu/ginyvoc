@@ -101,7 +101,7 @@ async function enterRoom(mode) {
     if (isHost) {
       if (!port || port < 1024 || port > 65535) return showLobbyError('请输入有效端口（1024-65535）');
     } else {
-      if (!address) return showLobbyError('请输入目标服务器 IP:端口，如 192.168.1.5:3000');
+      if (!address) return showLobbyError('请输入目标服务器地址，如 192.168.1.5:3000 或 隧道域名:端口');
     }
     const r = await window.gvDesktop.setServerConfig({
       mode: isHost ? 'local' : 'remote',

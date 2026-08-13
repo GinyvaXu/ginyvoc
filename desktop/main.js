@@ -89,7 +89,13 @@ function readConnectionConfig() {
 
 function normalizeRemoteAddress(input) {
   let s = String(input).trim();
-  if (!/^https?:\/\//i.test(s)) s = 'http://' + s;
+  if (!/^https?:\/\//i.test(s)) {
+    // 内网/组网虚拟 IP、localhost 走明文 HTTP；公网域名（如 SakuraFrp 隧道）默认 HTTPS
+    const m = s.match(/^\[([^\]]+)\]|^([^:]+)/);
+    const host = m ? (m[1] || m[2]) : s;
+    const isLocal = /^[\d.]+$/.test(host) || host.includes(':') || /^(localhost|.+\.(local|lan|home))$/i.test(host);
+    s = (isLocal ? 'http://' : 'https://') + s;
+  }
   try {
     const u = new URL(s);
     if (!u.port) u.port = '3000';

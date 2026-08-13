@@ -4,7 +4,7 @@
 > 桌面版为 **Windows exe**（内嵌服务器，无需安装 Node.js）；也可浏览器版直连。
 > 画面走 **WebRTC P2P（mesh）**，屏幕画面**不经过服务器**，服务器只做信令转发。
 
-![形态](https://img.shields.io/badge/形态-Web%20%2B%20Electron-blue) ![平台](https://img.shields.io/badge/平台-Windows%20%2F%20macOS%20%2F%20Linux-lightgrey) ![版本](https://img.shields.io/badge/版本-v1.3.0-green) ![技术](https://img.shields.io/badge/技术-WebRTC%20%2B%20Node.js-orange)
+![形态](https://img.shields.io/badge/形态-Web%20%2B%20Electron-blue) ![平台](https://img.shields.io/badge/平台-Windows%20%2F%20macOS%20%2F%20Linux-lightgrey) ![版本](https://img.shields.io/badge/版本-v1.3.1-green) ![技术](https://img.shields.io/badge/技术-WebRTC%20%2B%20Node.js-orange)
 
 ---
 
@@ -114,9 +114,9 @@ HTTPS=1 npm start  # 启动 HTTPS
 
 ### 方案二：内网穿透（SakuraFrp，好友零安装）
 
-1. 注册 [SakuraFrp](https://www.natfrp.com/)（需实名），创建一条 **TCP 隧道** 映射本机 GinyScreen 端口（默认 **3000**，可在首页改）
-2. 启动隧道，得到公网地址（形如 `123.45.67.89:23456`；可绑定域名开启 HTTPS）
-3. 把该地址发给好友：好友在首页选「加入房间」填入 → 自动重启并进入
+1. 注册 [SakuraFrp](https://www.natfrp.com/)（需实名），创建一条 **TCP 隧道** 映射本机 GinyScreen 端口（默认 **3000**，可在首页改），**并在隧道设置里开启「自动 HTTPS」**（国内节点会拦截明文 HTTP，开启后重启隧道）
+2. 启动隧道，得到公网域名地址（形如 `frp-oil.com:18565`），把该地址发给好友
+3. 好友在首页选「加入房间」填入该域名:端口 → 自动重启并进入（域名地址自动走 HTTPS，IP/组网地址自动走 HTTP）
 4. 只有开服者需要装 SakuraFrp；隧道是出站连接，Windows 防火墙无需额外放行
 
 > ⚠️ 内网穿透只解决「找到服务器」；屏幕画面是 WebRTC P2P 直连**不走隧道**。家庭宽带多数能打洞成功；

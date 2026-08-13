@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
-  "url": "https://github.com/GinyvaXu/GinyScreen/releases/download/v1.0.0/GinyScreen-Setup-v1.0.0.exe",
-  "notes": "# v1.0.0\n\n- 全新 GinyScreen：专注屏幕共享，移除语音通话\n- 深色影院式 UI：大屏舞台 + 成员列表 + 底部控制栏\n- 画质预设：文字优先 / 平衡 / 流畅（实时切换）\n- 支持共享系统声音（一起看视频）\n- 房间多人轮流共享，谁都能开播\n- 跨网络联机：蒲公英 / 米西 / SakuraFrp"
+  "version": "1.3.1",
+  "url": "https://github.com/GinyvaXu/GinyScreen/releases/download/v1.3.1/GinyScreen-Setup-v1.3.1.exe",
+  "notes": "# v1.3.1\n\n- 公网穿透 HTTPS 支持：域名地址自动走 HTTPS（SakuraFrp 隧道 frp-oil.com:18565 可直接填入）\n- 首个正式 Release + 自动更新清单启用\n- 修复历史更新日志中文乱码\n- 联机文档补充 SakuraFrp「自动 HTTPS」开启步骤"
 }
