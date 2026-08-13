@@ -17,12 +17,22 @@
         <label>昵称</label>
         <input id="input-username" type="text" maxlength="16" placeholder="输入昵称" autocomplete="off" />
       </div>
-      <div class="field">
-        <label>房间号（加入时填写）</label>
-        <input id="input-room" type="text" maxlength="5" placeholder="如：AB3K9" autocomplete="off" />
+      <div class="field" id="mode-fields">
+        <div class="mode-row">
+          <label class="mode-opt"><input type="radio" name="lobby-mode" id="mode-host" checked /> 开房间（本机）</label>
+          <label class="mode-opt"><input type="radio" name="lobby-mode" id="mode-guest" /> 加入房间</label>
+        </div>
+      </div>
+      <div class="field" id="port-field">
+        <label>本机端口（好友通过 IP:端口 连接）</label>
+        <input id="input-port" type="number" min="1024" max="65535" value="3000" autocomplete="off" />
+      </div>
+      <div class="field" id="address-field" hidden>
+        <label>目标服务器地址（IP:端口）</label>
+        <input id="input-address" type="text" placeholder="如 192.168.1.5:3000" autocomplete="off" spellcheck="false" />
       </div>
       <div class="btn-row">
-        <button id="btn-create" class="btn primary">创建房间</button>
+        <button id="btn-create" class="btn primary">开房间</button>
         <button id="btn-join" class="btn">加入房间</button>
       </div>
       <div id="lobby-error" class="error" hidden></div>
@@ -35,7 +45,6 @@
   <section id="screen-room" class="screen room" hidden>
     <header class="topbar">
       <div class="brand">🖥️ <b>GinyScreen</b></div>
-      <button id="btn-copy-room" class="chip" title="点击复制房间号">房间号 <b id="room-code">--</b> 🔗</button>
       <span id="conn-status" class="conn-status ok">● 已连接</span>
       <div class="top-actions">
         <button id="btn-server-settings" class="btn small">服务器设置</button>
@@ -96,10 +105,14 @@
     <div class="modal-card">
       <h3>🖧 服务器设置</h3>
       <div class="field">
-        <label><input type="radio" name="server-mode" id="server-mode-local" checked /> 本机开服（把本机地址发给好友）</label>
+        <label><input type="radio" name="server-mode" id="server-mode-local" checked /> 本机开服（选择端口）</label>
       </div>
       <div class="field">
         <label><input type="radio" name="server-mode" id="server-mode-remote" /> 连接朋友的服务器</label>
+      </div>
+      <div class="field" id="server-port-field">
+        <label>本机端口（默认 3000）</label>
+        <input id="server-port" type="number" min="1024" max="65535" value="3000" autocomplete="off" />
       </div>
       <div class="field" id="server-address-field" hidden>
         <label>服务器地址（IP 或 域名:端口）</label>

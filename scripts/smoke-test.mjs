@@ -1,5 +1,5 @@
 // smoke-test.mjs — GinyScreen 端到端信令冒烟测试（全局超时 15s）
-// 覆盖：创建/加入房间、成员通知、共享状态同步、WebRTC 信令转发、离开清理
+// 覆盖：单服务器单房间（无房间号）、成员通知、共享状态同步、WebRTC 信令转发、离开清理
 import { io } from 'socket.io-client';
 
 const URL = process.env.TEST_URL || 'http://localhost:3000';
@@ -29,13 +29,13 @@ const B = await connect('B');
 console.log('已连接两个测试客户端');
 
 const created = await emitAck(A, 'room:create', { username: 'Alice' });
-assert('A 创建房间', !!created.roomId, created.roomId);
+assert('A 创建房间(默认房间)', !!created.roomId && created.roomId === 'main', created.roomId);
 assert('A 获得房间状态(1人)', created.roomState?.users?.length === 1);
 const roomId = created.roomId;
 
 const memberJoinedA = new Promise((resolve) => A.once('member:joined', resolve));
-const joined = await emitAck(B, 'room:join', { roomId, username: 'Bob' });
-assert('B 加入房间', !joined.error && joined.roomId === roomId);
+const joined = await emitAck(B, 'room:join', { username: 'Bob' });
+assert('B 加入房间(无房间号)', !joined.error && joined.roomId === roomId, joined.roomId);
 assert('B 收到房间状态(2人)', joined.roomState.users.length === 2);
 const mj = await memberJoinedA;
 assert('A 收到 member:joined(B)', mj.user?.username === 'Bob' && mj.user?.share === false);

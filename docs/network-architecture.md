@@ -28,8 +28,8 @@
 
 | 步骤 | 方向 | 事件 | 内容 |
 |------|------|------|------|
-| 1 | A→S | `room:create` | 昵称 → 服务器建房(5位邀请码)并返回 `roomState` |
-| 2 | B→S | `room:join` | 房间号+昵称 → 服务器把 B 加入房间并广播 `room:state` |
+| 1 | A→S | `room:create` | 昵称 → 加入本服务器唯一默认房间并返回 `roomState`（v1.3.0 起无房间号） |
+| 2 | B→S | `room:join` | 昵称 → 加入同一个默认房间并广播 `room:state` |
 | 3 | A→S | `channel:join` | 频道 id → 服务器返回 `{channelId, peers}`（同频道已有成员） |
 | 4 | S→A | `channel:join` ack | `peers = [B]`，A 据此为 B 创建 PeerConnection |
 | 5 | S→B | `user:joined` | 通知 B："A 也进了频道"，B 同样创建 PC |

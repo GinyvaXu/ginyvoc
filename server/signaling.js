@@ -12,17 +12,16 @@ export function setupSignaling(io, rooms) {
     });
 
     socket.on('room:create', ({ username }, ack) => {
-      const room = rooms.createRoom();
-      const res = rooms.joinRoom(room.id, socket.id, username);
+      const res = rooms.joinRoom(socket.id, username);
       if (res.error) return ack?.({ error: res.error });
-      socket.join(room.id);
-      socket.data.roomId = room.id;
-      logger.work(`room:create ${room.id} user=${username} by ${socket.id}`);
-      ack?.({ roomId: room.id, roomState: rooms.serialize(room) });
+      socket.join(res.room.id);
+      socket.data.roomId = res.room.id;
+      logger.work(`room:create ${res.room.id} user=${username} by ${socket.id}`);
+      ack?.({ roomId: res.room.id, roomState: rooms.serialize(res.room) });
     });
 
-    socket.on('room:join', ({ roomId, username }, ack) => {
-      const res = rooms.joinRoom(String(roomId || '').trim().toUpperCase(), socket.id, username);
+    socket.on('room:join', ({ username }, ack) => {
+      const res = rooms.joinRoom(socket.id, username);
       if (res.error) return ack?.({ error: res.error });
       socket.join(res.room.id);
       socket.data.roomId = res.room.id;

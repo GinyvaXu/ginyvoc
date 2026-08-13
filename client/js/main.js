@@ -7,7 +7,6 @@ import * as ui from './ui.js';
 const state = {
   meId: null,
   username: '',
-  roomId: '',
   socket: null,
   mesh: null,
   config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }], version: '' },
@@ -35,7 +34,11 @@ async function boot() {
   wireSourcePicker();
   wireErrorReport();
   showLobbyServer();
-  ui.showScreen('lobby');
+  const params = new URLSearchParams(location.search);
+  const autoNick = params.get('nick') || '';
+  if (autoNick) ui.$('#input-username').value = autoNick;
+  if (params.get('autojoin') === '1' && autoNick) enterRoom('join');
+  else ui.showScreen('lobby');
 }
 
 function connect() {
@@ -59,30 +62,69 @@ function connect() {
 
 // ═══════════ 进入页 ═══════════
 function wireLobby() {
+  const modeHost = ui.$('#mode-host');
+  const modeGuest = ui.$('#mode-guest');
+  function syncModeFields() {
+    const guest = modeGuest.checked;
+    ui.$('#port-field').hidden = guest;
+    ui.$('#address-field').hidden = !guest;
+    if (guest) ui.$('#input-address').focus();
+  }
+  modeHost?.addEventListener('change', syncModeFields);
+  modeGuest?.addEventListener('change', syncModeFields);
   ui.$('#btn-create').addEventListener('click', () => enterRoom('create'));
   ui.$('#btn-join').addEventListener('click', () => enterRoom('join'));
-  ui.$('#input-room').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterRoom('join'); });
-  ui.$('#input-username').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterRoom('create'); });
+  ui.$('#input-username').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') enterRoom(modeGuest?.checked ? 'join' : 'create');
+  });
+  ui.$('#input-port').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterRoom('create'); });
+  ui.$('#input-address').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterRoom('join'); });
+  // 浏览器版没有端口/IP 直连能力：隐藏主机/加入选择，直接进当前服务器
+  if (!window.gvDesktop?.setServerConfig) {
+    ui.$('#mode-fields').hidden = true;
+    ui.$('#port-field').hidden = true;
+    ui.$('#address-field').hidden = true;
+    ui.$('#btn-join').hidden = true;
+    ui.$('#btn-create').textContent = '进入房间';
+  }
 }
 
 async function enterRoom(mode) {
   const username = ui.$('#input-username').value.trim() || '观众';
-  const roomInput = ui.$('#input-room').value.trim().toUpperCase();
-  if (mode === 'join' && !roomInput) return showLobbyError('请输入房间号');
   state.username = username;
-  const res = mode === 'create'
-    ? await state.socket.createRoom(username)
-    : await state.socket.joinRoom(roomInput, username);
+  const autojoin = new URLSearchParams(location.search).get('autojoin') === '1';
+  // 桌面版首页：先保存连接配置（端口 / IP:端口），重启后自动进入
+  if (window.gvDesktop?.setServerConfig && !autojoin) {
+    const isHost = mode !== 'join';
+    const port = Number(ui.$('#input-port').value);
+    const address = ui.$('#input-address').value.trim();
+    if (isHost) {
+      if (!port || port < 1024 || port > 65535) return showLobbyError('请输入有效端口（1024-65535）');
+    } else {
+      if (!address) return showLobbyError('请输入目标服务器 IP:端口，如 192.168.1.5:3000');
+    }
+    const r = await window.gvDesktop.setServerConfig({
+      mode: isHost ? 'local' : 'remote',
+      address,
+      port,
+      nickname: username,
+      autoJoin: true,
+    });
+    if (r?.ok) ui.toast('正在重启并进入房间…');
+    else ui.toast(r?.error || '设置保存失败');
+    return;
+  }
+  // 浏览器版 / 重启后的桌面版：直接加入当前服务器的默认房间
+  const res = await state.socket.joinRoom(username);
   if (res?.error) return showLobbyError(res.error);
-  state.roomId = res.roomId;
   state.meId = state.socket.id();
   state.members = res.roomState.users;
   ui.$('#lobby-error').hidden = true;
-  ui.$('#room-code').textContent = state.roomId;
   setConnStatus(true);
   ui.renderMembers(state.members, state.meId);
   applyRoomState(res.roomState);
   ui.showScreen('room');
+  if (autojoin) history.replaceState(null, '', location.pathname);
 }
 
 function showLobbyError(msg) {
@@ -96,7 +138,7 @@ async function showLobbyServer() {
   try {
     if (window.gvDesktop?.getServerConfig) {
       const cfg = await window.gvDesktop.getServerConfig();
-      el.textContent = cfg.mode === 'remote' ? `当前服务器：${cfg.address}` : '当前服务器：本机开服';
+      el.textContent = cfg.mode === 'remote' ? `当前服务器：${cfg.address}` : `当前服务器：本机开服（端口 ${cfg.port || 3000}）`;
     } else {
       el.textContent = `当前服务器：${location.origin}`;
     }
@@ -237,9 +279,8 @@ function wireRoom() {
   });
   ui.setFocusHandler((id) => { state.focused = id; renderStage(); });
 
-  ui.$('#btn-copy-room').addEventListener('click', () => copyText(state.roomId, '房间号已复制'));
   ui.$('#btn-copy-link').addEventListener('click', () => {
-    copyText(`${location.origin}?room=${state.roomId}`, '邀请链接已复制');
+    copyText(location.origin, '访问地址已复制（好友用它加入你的房间）');
   });
   ui.$('#btn-leave').addEventListener('click', leaveRoom);
   ui.$('#btn-server-settings').addEventListener('click', openServerSettings);
@@ -299,7 +340,9 @@ async function openServerSettings() {
     local.checked = cfg.mode !== 'remote';
     remote.checked = cfg.mode === 'remote';
     addrEl.value = cfg.address || '';
+    ui.$('#server-port').value = cfg.port || 3000;
     ui.$('#server-address-field').hidden = cfg.mode !== 'remote';
+    ui.$('#server-port-field').hidden = cfg.mode === 'remote';
     localEl.innerHTML = cfg.localUrls?.length
       ? cfg.localUrls.map((u) => `<code>${u}</code>`).join('<br>')
       : '（未检测到局域网/组网地址，请确认已加入蒲公英/米西等虚拟局域网）';
@@ -320,7 +363,11 @@ async function saveServerSettings() {
   }
   const mode = ui.$('#server-mode-remote').checked ? 'remote' : 'local';
   const address = ui.$('#server-address').value.trim();
-  const r = await window.gvDesktop.setServerConfig({ mode, address });
+  const port = Number(ui.$('#server-port').value) || 3000;
+  const nickname = state.username || ui.$('#input-username').value.trim() || '';
+  if (mode === 'local' && (port < 1024 || port > 65535)) { ui.toast('请输入有效端口（1024-65535）'); return; }
+  if (mode === 'remote' && !address) { ui.toast('请输入服务器地址'); return; }
+  const r = await window.gvDesktop.setServerConfig({ mode, address, port, nickname, autoJoin: true });
   if (r?.ok) {
     ui.$('#modal-server').hidden = true;
     ui.toast('设置已保存，正在重启应用…');
@@ -335,8 +382,10 @@ function wireModals() {
   ui.$('#btn-server-save').addEventListener('click', saveServerSettings);
   for (const radio of [ui.$('#server-mode-local'), ui.$('#server-mode-remote')]) {
     radio.addEventListener('change', () => {
-      ui.$('#server-address-field').hidden = !ui.$('#server-mode-remote').checked;
-      if (ui.$('#server-mode-remote').checked) ui.$('#server-address').focus();
+      const remote = ui.$('#server-mode-remote').checked;
+      ui.$('#server-address-field').hidden = !remote;
+      ui.$('#server-port-field').hidden = remote;
+      if (remote) ui.$('#server-address').focus();
     });
   }
   ui.$('#btn-about-close').addEventListener('click', () => { ui.$('#modal-about').hidden = true; });

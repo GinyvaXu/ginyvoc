@@ -21,7 +21,7 @@ export function connectSignaling({ onState, onSignal, onMemberJoined, onMemberLe
   return {
     id: () => socket.id,
     createRoom: (username) => emitAck('room:create', { username }),
-    joinRoom: (roomId, username) => emitAck('room:join', { roomId, username }),
+    joinRoom: (username) => emitAck('room:join', { username }),
     leaveRoom: () => emitAck('room:leave', {}),
     setShare: (share) => emitAck('share:update', { share }),
     signal: (to, data) => socket.emit('signal', { to, data }),

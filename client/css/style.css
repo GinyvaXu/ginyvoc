@@ -77,6 +77,9 @@ input, select { font: inherit; color: var(--text); }
 .tagline { text-align: center; color: var(--dim); margin: 6px 0 24px; }
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 13px; color: var(--dim); margin-bottom: 6px; }
+.mode-row { display: flex; gap: 16px; margin-bottom: 14px; }
+.mode-opt { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer; }
+.mode-opt input { accent-color: var(--accent); width: 15px; height: 15px; }
 .field input[type="text"] {
   width: 100%;
   background: var(--bg);

@@ -31,7 +31,24 @@ const isDebugBuild = (process.env.PORTABLE_EXECUTABLE_FILE || process.execPath).
 // ── 单实例锁：重复启动时唤起已有窗口 ──
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
-  app.quit();
+  // relaunch 竞态：app.relaunch 会在旧实例完全退出前启动新实例，此时拿不到单实例锁；
+  // 带 --gv-relaunch 标记时短暂重试，避免新实例启动即退出
+  if (process.argv.includes('--gv-relaunch')) {
+    let lockTries = 0;
+    const retryLock = () => {
+      if (app.requestSingleInstanceLock()) {
+        app.on('second-instance', () => showMainWindow());
+        bootstrap();
+      } else if (++lockTries < 20) {
+        setTimeout(retryLock, 300);
+      } else {
+        app.quit();
+      }
+    };
+    retryLock();
+  } else {
+    app.quit();
+  }
 } else {
   app.on('second-instance', () => showMainWindow());
   bootstrap();
@@ -46,8 +63,9 @@ let serverPort = 3000;
 let pendingDisplayCapture = null; // { callback, audioRequested, sources }
 
 // ── 服务器连接配置（本机开服 / 连接朋友的远程服务器）──
-let connCfg = { mode: 'local', address: '' };
+let connCfg = { mode: 'local', address: '', port: 3000, nickname: '' };
 let remoteOrigin = null;
+let logger = null; // module-level, 由 bootstrap() 赋值，供 IPC/更新处理器使用
 
 function connectionFile() {
   return join(app.getPath('userData'), 'connection.json');
@@ -57,11 +75,16 @@ function readConnectionConfig() {
   try {
     const raw = readFileSync(connectionFile(), 'utf8');
     const cfg = JSON.parse(raw);
-    if (cfg && cfg.mode === 'remote' && typeof cfg.address === 'string' && cfg.address.trim()) {
-      return { mode: 'remote', address: normalizeRemoteAddress(cfg.address) };
+    const port = Math.min(65535, Math.max(1024, Number(cfg?.port) || 3000));
+    const nickname = String(cfg?.nickname || '').slice(0, 16);
+    if (cfg?.mode === 'remote' && typeof cfg.address === 'string' && cfg.address.trim()) {
+      return { mode: 'remote', address: normalizeRemoteAddress(cfg.address), port, nickname };
+    }
+    if (cfg?.mode === 'local') {
+      return { mode: 'local', address: '', port, nickname };
     }
   } catch { /* 无配置或损坏 → 本机开服 */ }
-  return { mode: 'local', address: '' };
+  return { mode: 'local', address: '', port: 3000, nickname: '' };
 }
 
 function normalizeRemoteAddress(input) {
@@ -101,7 +124,9 @@ async function bootstrap() {
   process.env.DEBUG_LOG = isDebugBuild ? '1' : '0';
 
   const { startGinyScreenServer } = await import('../server/app.js');
-  const { logger } = await import('../server/logger.js');
+  logger = (await import('../server/logger.js')).logger;
+  const cdpArg = process.argv.find((a) => a.startsWith('--remote-debugging-port='));
+  if (cdpArg) logger.work('远程调试端口: ' + cdpArg);
   logger.work('══════════════════════════════════════════');
   logger.work('  🖥️ GinyScreen 桌面版启动中 (Debug 日志已开启)');
   logger.work(`  日志目录: ${logDir}`);
@@ -109,6 +134,8 @@ async function bootstrap() {
 
   connCfg = readConnectionConfig();
   remoteOrigin = connCfg.mode === 'remote' ? connCfg.address : null;
+  serverPort = connCfg.port;
+  const autoJoin = process.argv.includes('--autojoin');
   if (remoteOrigin) {
     // 远程服务器多为内网/虚拟局域网明文 HTTP，Chromium 默认不给 getUserMedia 权限；
     // 将该 origin 标记为安全来源（必须在 app ready 前设置）
@@ -116,22 +143,32 @@ async function bootstrap() {
     logger.work(`连接远程服务器: ${remoteOrigin}`);
   }
 
-  try {
-    serverHandle = await startGinyScreenServer({
-      port: Number(process.env.PORT || 3000),
-      host: '::',          // 双栈监听：本机/局域网/ZeroTier 虚拟网/IPv6 均可访问
-      retryOnBusy: true,
-    });
-  } catch (err) {
-    logger.error('服务器启动失败:', err);
-    dialog.showErrorBox('GinyScreen', '服务器启动失败，请查看日志：\n' + (err?.message || String(err)));
-    app.quit();
-    return;
+  if (connCfg.mode === 'remote') {
+    // 加入朋友房间：不需要在本机开服务器，直接加载对方地址
+    appUrl = remoteOrigin;
+    logger.work(`远程模式：窗口加载 ${appUrl}`);
+  } else {
+    try {
+      serverHandle = await startGinyScreenServer({
+        port: connCfg.port,   // 主机自选端口（默认 3000）
+        host: '::',           // 双栈监听：本机/局域网/ZeroTier 虚拟网/IPv6 均可访问
+        retryOnBusy: false,   // 端口被占用直接报错，避免悄悄换端口导致好友连不上
+      });
+    } catch (err) {
+      logger.error('服务器启动失败:', err);
+      dialog.showErrorBox('GinyScreen', '服务器启动失败（端口可能被占用），请查看日志：\n' + (err?.message || String(err)));
+      app.quit();
+      return;
+    }
+    serverPort = serverHandle.port;
+    appUrl = `http://127.0.0.1:${serverPort}`;
+    logger.work(`服务器已启动: ${appUrl}`);
   }
 
-  serverPort = serverHandle.port;
-  appUrl = remoteOrigin || `http://127.0.0.1:${serverPort}`;
-  logger.work(`服务器已启动: ${appUrl}`);
+  if (autoJoin && connCfg.nickname) {
+    appUrl += (appUrl.includes('?') ? '&' : '?') + `autojoin=1&nick=${encodeURIComponent(connCfg.nickname)}`;
+    logger.work('自动进入房间（--autojoin）');
+  }
 
   openDebugConsole(logDir);
 
@@ -355,15 +392,34 @@ function wireUpdater() {
   ipcMain.handle('gv:get-server-config', () => ({
     mode: connCfg.mode,
     address: connCfg.address,
-    localUrls: getLocalUrls(serverPort),
+    port: connCfg.port,
+    nickname: connCfg.nickname,
+    localUrls: getLocalUrls(connCfg.port),
   }));
-  ipcMain.handle('gv:set-server-config', (_e, { mode, address } = {}) => {
+  ipcMain.handle('gv:set-server-config', (_e, { mode, address, port, nickname, autoJoin } = {}) => {
     const nextMode = mode === 'remote' ? 'remote' : 'local';
+    const nextPort = Math.min(65535, Math.max(1024, Number(port) || 3000));
     const nextAddress = nextMode === 'remote' ? normalizeRemoteAddress(address || '') : '';
+    const nextNickname = String(nickname || '').slice(0, 16);
     if (nextMode === 'remote' && !nextAddress) return { ok: false, error: '服务器地址无效' };
-    writeConnectionConfig({ mode: nextMode, address: nextAddress });
-    logger.work(`服务器设置已保存: ${nextMode}${nextAddress ? ' → ' + nextAddress : ''}`);
-    setTimeout(() => { app.relaunch(); app.exit(0); }, 500); // 切换服务器需重启生效
+    if (nextMode === 'local' && (Number(port) < 1024 || Number(port) > 65535)) return { ok: false, error: '端口需在 1024-65535 之间' };
+    writeConnectionConfig({ mode: nextMode, address: nextAddress, port: nextPort, nickname: nextNickname });
+    logger.work(`连接配置已保存: ${nextMode}${nextMode === 'local' ? ' port=' + nextPort : ' → ' + nextAddress}`);
+    const relaunchArgs = process.argv.slice(1)
+      .filter((a) => a !== '--autojoin' && a !== '--gv-relaunch')
+      // 旧实例退出后其调试端口 socket 可能残留 CloseWait，换用新端口避免新实例无法绑定
+      .map((a) => (a.startsWith('--remote-debugging-port=') ? '--remote-debugging-port=' + String(39000 + Math.floor(Math.random() * 1000)) : a));
+    if (autoJoin) relaunchArgs.push('--autojoin');
+    if (!relaunchArgs.includes('--gv-relaunch')) relaunchArgs.push('--gv-relaunch'); // 标记重启用例，容忍单实例锁竞态
+    // 手动拉起新进程替代 app.relaunch：Windows 上 app.relaunch + 单实例锁存在竞态，新实例可能不启动
+    // 便携版优先用 PORTABLE_EXECUTABLE_FILE（原 stub）：process.execPath 是 stub 解压出的临时 exe，
+    // 旧实例退出时 stub 会清理临时目录，直接 spawn 临时 exe 在二次重启时会失败
+    const relaunchExe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+    setTimeout(() => {
+      const child = spawn(relaunchExe, relaunchArgs, { detached: true, stdio: 'ignore' });
+      child.unref();
+      app.exit(0);
+    }, 500); // 切换服务器/端口需重启生效
     return { ok: true, restarting: true };
   });
   // 界面内退出（帮助 → 退出 GinyScreen）
