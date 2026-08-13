@@ -54,7 +54,7 @@ npm run archive         # 发布归档：产物/源码快照到 versions/vX.Y.Z/
 - 局域网/公网需 HTTPS 与 TURN，见 README「局域网使用」「公网使用」
 
 ## 当前状态
-- 版本：v1.0.0（全面重做：移除语音/聊天，专注屏幕共享；影院式 UI；画质预设 + 系统声音；mesh 重构）
+- 版本：v1.2.0（画质直选分辨率+帧率 1080p60 默认；内置屏幕/窗口选择器；每格独立音量；服务器设置可切换连接 IP；日志 UTF-8 BOM）
 - 分支：main（稳定）/ develop（日常开发）
 - 远程：https://github.com/GinyvaXu/GinyScreen（公开，自动更新依赖公开访问 update.json 与 Releases 资产）
 - 自动更新：桌面安装版内置 updater.js（多源清单 + NSIS 静默升级），清单为根目录 update.json

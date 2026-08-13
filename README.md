@@ -4,7 +4,7 @@
 > 桌面版为 **Windows exe**（内嵌服务器，无需安装 Node.js）；也可浏览器版直连。
 > 画面走 **WebRTC P2P（mesh）**，屏幕画面**不经过服务器**，服务器只做信令转发。
 
-![形态](https://img.shields.io/badge/形态-Web%20%2B%20Electron-blue) ![平台](https://img.shields.io/badge/平台-Windows%20%2F%20macOS%20%2F%20Linux-lightgrey) ![版本](https://img.shields.io/badge/版本-v1.0.0-green) ![技术](https://img.shields.io/badge/技术-WebRTC%20%2B%20Node.js-orange)
+![形态](https://img.shields.io/badge/形态-Web%20%2B%20Electron-blue) ![平台](https://img.shields.io/badge/平台-Windows%20%2F%20macOS%20%2F%20Linux-lightgrey) ![版本](https://img.shields.io/badge/版本-v1.2.0-green) ![技术](https://img.shields.io/badge/技术-WebRTC%20%2B%20Node.js-orange)
 
 ---
 
@@ -13,7 +13,7 @@
 | 类别 | 能力 |
 |------|------|
 | 🖥️ 屏幕共享 | 共享整屏 / 窗口 / 标签页，**支持系统声音**（一起看视频必备） |
-| 🎬 画质预设 | 文字优先（清晰）/ 平衡 / 流畅（高帧率），**共享中可实时切换** |
+| 🎬 画质预设 | 1080p60 / 1080p30 / 720p60 / 720p30 / 480p30，**直接选分辨率和帧率，共享中可实时切换** |
 | 🧑‍🤝‍🧑 多人共享 | 房间内谁都能开播，多人同时共享时多宫格展示，**点击聚焦**大屏 |
 | 🎞️ 影院式 UI | 深色大屏舞台 + 左侧成员列表 + 底部控制栏，专注观看 |
 | 🔗 房间系统 | 5 位邀请码，一键复制邀请链接，双击即进 |
@@ -199,7 +199,7 @@ GinyScreen/
 
 - **媒体面**：WebRTC mesh，共享者与每位观看者一条 P2P 连接；画面/声音直连，服务器零媒体成本，DTLS-SRTP 端到端加密
 - **信令面**：Socket.IO 转发 SDP/ICE 与房间/共享状态；服务器不接触媒体内容
-- **画质**：预设档（文字优先/平衡/流畅）+ `maintain-resolution` 降级策略（拥塞时降帧不降清晰度）+ 码率上限控制上行
+- **画质**：直接选择 1080p60 / 1080p30 / 720p60 / 720p30 / 480p30（分辨率+帧率），拥塞时降帧不降清晰度 + 码率上限控制上行
 - **扩展路径**：观看人数 >8 时替换为 mediasoup / LiveKit SFU（信令协议不变）
 
 完整信令/媒体链路解读：[docs/network-architecture.md](docs/network-architecture.md)
@@ -239,6 +239,8 @@ node scripts/smoke-test.mjs
 
 | 版本 | 说明 |
 |------|------|
+| v1.2.0 | 画质直选分辨率+帧率（1080p60 默认/1080p30/720p60/720p30/480p30）；修复服务器设置无法切换连接 IP；日志中文 BOM + Debug 控制台 UTF-8 |
+| v1.1.0 | 修复桌面版共享 NotSupported（内置屏幕/窗口选择器）；共享人可选画质/系统声音；每格独立音量 |
 | v1.0.0 | **全面重做 GinyScreen**：移除语音通话，专注屏幕共享；影院式深色 UI；画质预设 + 系统声音；多人轮流共享；房间/成员/共享信令重构；GitHub 仓库更名 |
 | v0.6.0 | 跨网络联机：服务器设置（本机开服/连朋友）、双栈监听、SakuraFrp 穿透 + 蒲公英/米西/ZeroTier 组网、打洞失败诊断（GinyVoC 时代） |
 | v0.5.1 | 修复 VAD 死锁（麦克风不工作）+ 本地音量反馈；托盘退出修复；频道双击进入；应用内退出（GinyVoC 时代） |

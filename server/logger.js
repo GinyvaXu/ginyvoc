@@ -1,11 +1,27 @@
 // logger.js — Debug 版日志：工作日志(work-日期.log) + 报错日志(error-日期.log)
 // 同步追加写盘，进程异常退出也不丢日志；日志目录可用 LOG_DIR 环境变量覆盖
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const logDir = process.env.LOG_DIR || join(process.cwd(), 'temp', 'logs');
 try { mkdirSync(logDir, { recursive: true }); } catch { /* 目录不可建时只打控制台 */ }
 
+const bom = '\ufeff';
+const ensured = new Set();
+function ensureBom(file) {
+  if (ensured.has(file)) return;
+  ensured.add(file);
+  try {
+    if (!existsSync(file)) {
+      appendFileSync(file, bom, 'utf8');
+      return;
+    }
+    if (readFileSync(file, 'utf8').charAt(0) !== '\ufeff') {
+      const body = readFileSync(file, 'utf8');
+      writeFileSync(file, bom + body, 'utf8'); // 旧日志补 BOM，避免中文被按 ANSI 读成问号
+    }
+  } catch { /* 日志编码修复失败不阻塞 */ }
+}
 const stamp = () => new Date().toISOString().replace('T', ' ').slice(0, 23);
 const day = () => new Date().toISOString().slice(0, 10);
 
@@ -20,7 +36,11 @@ function fmt(args) {
 function emit(kind, tag, args) {
   const line = `[${stamp()}] [${tag}] ${fmt(args)}`;
   if (kind === 'error') console.error(line); else console.log(line);
-  try { appendFileSync(join(logDir, `${kind}-${day()}.log`), line + '\n', 'utf8'); } catch { /* 忽略写盘失败 */ }
+  const logFile = join(logDir, `${kind}-${day()}.log`);
+  try {
+    ensureBom(logFile);
+    appendFileSync(logFile, line + '\n', 'utf8');
+  } catch { /* 忽略写盘失败 */ }
 }
 
 export const logger = {

@@ -233,6 +233,8 @@ function openDebugConsole(logDir) {
   try {
     const scriptPath = join(logDir, '_debug-console.ps1');
     const ps = `$Host.UI.RawUI.WindowTitle = 'GinyScreen Debug 控制台'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+chcp 65001 > $null
 Write-Host '=================================================='
 Write-Host '  GinyScreen Debug 控制台 - 实时日志'
 Write-Host ('  日志目录: ' + '${logDir}')

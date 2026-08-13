@@ -5,20 +5,22 @@
 //  - 拥塞时「保持分辨率、丢弃帧」而非降分辨率（LiveKit 实测：文字清晰优先）
 //  - 码率上限：mesh 下每名观看者各占一份上行，限制码率避免 3~4 人时上行爆表
 export const PRESETS = {
-  detail:   { label: '文字优先', fps: 8,  bitrate: 2500, hint: 'detail' },
-  balanced: { label: '平衡',     fps: 15, bitrate: 3500, hint: 'detail' },
-  motion:   { label: '流畅',     fps: 30, bitrate: 5000, hint: 'motion' },
+  '1080p60': { label: '1080p 60fps', width: 1920, height: 1080, fps: 60, bitrate: 8000, hint: 'motion' },
+  '1080p30': { label: '1080p 30fps', width: 1920, height: 1080, fps: 30, bitrate: 6000, hint: 'detail' },
+  '720p60':  { label: '720p 60fps',  width: 1280, height: 720,  fps: 60, bitrate: 5000, hint: 'motion' },
+  '720p30':  { label: '720p 30fps',  width: 1280, height: 720,  fps: 30, bitrate: 4000, hint: 'detail' },
+  '480p30':  { label: '480p 30fps',  width: 854,  height: 480,  fps: 30, bitrate: 2500, hint: 'detail' },
 };
 
-export const DEFAULT_PRESET = 'balanced';
+export const DEFAULT_PRESET = '1080p60';
 
 // 启动屏幕共享（含可选的系统声音）
 export async function startScreenShare({ presetKey = DEFAULT_PRESET, withAudio = false } = {}) {
   const preset = PRESETS[presetKey] || PRESETS[DEFAULT_PRESET];
   const stream = await navigator.mediaDevices.getDisplayMedia({
     video: {
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
+      width: { ideal: preset.width, max: preset.width },
+      height: { ideal: preset.height, max: preset.height },
       frameRate: { ideal: preset.fps, max: preset.fps },
     },
     audio: withAudio,
@@ -39,7 +41,11 @@ export async function applyPreset(stream, pcList, presetKey) {
   for (const track of stream.getVideoTracks()) {
     track.contentHint = preset.hint;
     try {
-      await track.applyConstraints({ frameRate: { ideal: preset.fps, max: preset.fps } });
+      await track.applyConstraints({
+        width: { ideal: preset.width, max: preset.width },
+        height: { ideal: preset.height, max: preset.height },
+        frameRate: { ideal: preset.fps, max: preset.fps },
+      });
     } catch { /* 采集端不支持实时改帧率则忽略 */ }
   }
   for (const pc of pcList) applySendParams(pc, preset);

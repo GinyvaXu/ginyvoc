@@ -333,6 +333,12 @@ async function saveServerSettings() {
 function wireModals() {
   ui.$('#btn-server-cancel').addEventListener('click', () => { ui.$('#modal-server').hidden = true; });
   ui.$('#btn-server-save').addEventListener('click', saveServerSettings);
+  for (const radio of [ui.$('#server-mode-local'), ui.$('#server-mode-remote')]) {
+    radio.addEventListener('change', () => {
+      ui.$('#server-address-field').hidden = !ui.$('#server-mode-remote').checked;
+      if (ui.$('#server-mode-remote').checked) ui.$('#server-address').focus();
+    });
+  }
   ui.$('#btn-about-close').addEventListener('click', () => { ui.$('#modal-about').hidden = true; });
   ui.$('#btn-update-cancel').addEventListener('click', () => { ui.$('#modal-update').hidden = true; });
   ui.$('#btn-update-now').addEventListener('click', async () => {
