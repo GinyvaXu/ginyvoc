@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GinyScreen · 一起看屏幕</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- 进入页 -->
+  <section id="screen-lobby" class="screen lobby">
+    <div class="lobby-card">
+      <div class="logo">🖥️ GinyScreen</div>
+      <p class="tagline">屏幕共享 · 一起看视频 / 电影 / 游戏</p>
+      <div id="lobby-recover-banner" class="recover-banner" hidden>⚠️ 上次连接的服务器不可用，请在「服务器设置」中修改地址，或返回本机开服。</div>
+      <div class="field">
+        <label>昵称</label>
+        <input id="input-username" type="text" maxlength="16" placeholder="输入昵称" autocomplete="off" />
+      </div>
+      <div class="field" id="mode-fields">
+        <div class="mode-row">
+          <label class="mode-opt"><input type="radio" name="lobby-mode" id="mode-host" checked /> 开房间（本机）</label>
+          <label class="mode-opt"><input type="radio" name="lobby-mode" id="mode-guest" /> 加入房间</label>
+        </div>
+      </div>
+      <div class="field" id="port-field">
+        <label>本机端口（好友通过 IP:端口 连接）</label>
+        <input id="input-port" type="number" min="1024" max="65535" value="3000" autocomplete="off" />
+      </div>
+      <div class="field" id="address-field" hidden>
+        <label>目标服务器地址（IP:端口）</label>
+        <input id="input-address" type="text" placeholder="如 192.168.1.5:3000 或 隧道域名:端口（公网自动 HTTPS）" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="btn-row">
+        <button id="btn-create" class="btn primary">开房间</button>
+        <button id="btn-join" class="btn">加入房间</button>
+      </div>
+      <div class="lobby-actions">
+        <button id="btn-server-settings-lobby" class="btn small">⚙️ 服务器设置</button>
+      </div>
+      <div id="lobby-error" class="error" hidden></div>
+      <p class="hint">建议使用 Edge / Chrome。共享屏幕时可勾选「系统声音」，适合一起看视频。</p>
+      <p class="hint" id="lobby-server"></p>
+    </div>
+  </section>
+
+  <!-- 房间（影院式） -->
+  <section id="screen-room" class="screen room" hidden>
+    <header class="topbar">
+      <div class="brand">🖥️ <b>GinyScreen</b></div>
+      <span id="conn-status" class="conn-status ok">● 已连接</span>
+      <div class="top-actions">
+        <button id="btn-server-settings" class="btn small">服务器设置</button>
+        <div class="dropdown-wrap">
+          <button id="btn-help" class="btn small">帮助 ▾</button>
+          <div id="menu-help" class="dropdown" hidden>
+            <button data-action="check-update">🔄 检查更新</button>
+            <button data-action="open-about">📻 关于 GinyScreen</button>
+            <button data-action="quit-app">⏻ 退出 GinyScreen</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="room-main">
+      <aside class="sidebar">
+        <div class="sidebar-title">成员 <span id="member-count" class="chip">0</span></div>
+        <ul id="member-list" class="member-list"></ul>
+        <div class="sidebar-foot">
+          <button id="btn-copy-link" class="btn block">🔗 复制邀请链接</button>
+          <button id="btn-leave" class="btn block danger">🚪 离开房间</button>
+        </div>
+      </aside>
+
+      <section class="stage" id="stage">
+        <div id="stage-main" class="stage-main">
+          <div class="empty-state">
+            <div class="empty-icon">🖥️</div>
+            <p class="empty-title">还没有人共享屏幕</p>
+            <p class="dim">点击下方「共享屏幕」，让大家一起看</p>
+            <button id="btn-empty-share" class="btn primary big">共享屏幕</button>
+          </div>
+        </div>
+        <div id="stage-minis" class="stage-minis"></div>
+      </section>
+    </main>
+
+    <footer class="bottombar">
+      <button id="btn-share" class="btn primary share-btn">🖥️ 共享屏幕</button>
+      <label class="preset-label">画质
+        <select id="preset-select">
+          <option value="1080p60" selected>1080p · 60fps（推荐）</option>
+          <option value="1080p30">1080p · 30fps</option>
+          <option value="720p60">720p · 60fps</option>
+          <option value="720p30">720p · 30fps</option>
+          <option value="480p30">480p · 30fps</option>
+        </select>
+      </label>
+      <label class="check"><input id="share-audio" type="checkbox" /> 同时共享系统声音</label>
+      <span id="share-status" class="share-status"></span>
+      <span class="spacer"></span>
+      <span class="dim hint">点击画面可聚焦 · 房间内谁都可以共享</span>
+    </footer>
+  </section>
+
+  <!-- 服务器设置 -->
+  <div id="modal-server" class="modal" hidden>
+    <div class="modal-card">
+      <h3>🖧 服务器设置</h3>
+      <div class="field">
+        <label><input type="radio" name="server-mode" id="server-mode-local" checked /> 本机开服（选择端口）</label>
+      </div>
+      <div class="field">
+        <label><input type="radio" name="server-mode" id="server-mode-remote" /> 连接朋友的服务器</label>
+      </div>
+      <div class="field" id="server-port-field">
+        <label>本机端口（默认 3000）</label>
+        <input id="server-port" type="number" min="1024" max="65535" value="3000" autocomplete="off" />
+      </div>
+      <div class="field" id="server-address-field" hidden>
+        <label>服务器地址（IP 或 域名:端口）</label>
+        <input id="server-address" type="text" placeholder="如 10.147.17.1:3000 或 隧道域名:端口（公网自动 HTTPS）" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label>本机可访问地址（发给好友）</label>
+        <div id="server-local-urls" class="server-urls dim"></div>
+      </div>
+      <p class="hint">跨网络联机任选一种：① 蒲公英/米西/ZeroTier 组网后填虚拟 IP（最稳）；② 用 SakuraFrp 把本机 3000 端口穿透成公网地址发给好友（只有开服者要装）。切换后应用会自动重启。</p>
+      <div class="modal-actions">
+        <button id="btn-server-cancel" class="btn">取消</button>
+        <button id="btn-server-save" class="btn primary">保存并重启</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 关于 -->
+  <div id="modal-about" class="modal" hidden>
+    <div class="modal-card">
+      <h3>📻 关于 GinyScreen</h3>
+      <p class="dim">版本 <b id="about-version">--</b></p>
+      <p>屏幕共享 · 一起看视频 / 电影 / 游戏。WebRTC P2P 直连，画面不经过服务器。</p>
+      <div class="modal-actions"><button id="btn-about-close" class="btn">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- 软件更新 -->
+  <div id="modal-update" class="modal" hidden>
+    <div class="modal-card">
+      <h3>🔄 软件更新</h3>
+      <p id="update-status" class="dim">检查更新中…</p>
+      <div id="update-info" class="update-info" hidden>
+        <p class="update-versions">当前版本 <b id="update-cur">--</b> → 新版本 <b id="update-new">--</b></p>
+        <div id="update-notes" class="update-notes"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-update-now" class="btn primary" hidden>立即更新</button>
+        <button id="btn-update-cancel" class="btn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 共享源选择（桌面版内置；浏览器版用系统原生选择器） -->
+  <div id="modal-source-picker" class="modal" hidden>
+    <div class="modal-card source-picker-card">
+      <h3>🖥️ 选择要共享的屏幕 / 窗口</h3>
+      <p class="dim">共享期间可随时在底部切换画质；勾选「系统声音」可一起传声音。</p>
+      <div id="source-picker-grid" class="source-picker-grid"></div>
+      <div class="modal-actions">
+        <button id="btn-source-cancel" class="btn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/vendor/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

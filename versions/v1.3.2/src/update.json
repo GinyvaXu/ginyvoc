@@ -1,0 +1,5 @@
+{
+  "version": "1.3.1",
+  "url": "https://github.com/GinyvaXu/GinyScreen/releases/download/v1.3.1/GinyScreen-Setup-v1.3.1.exe",
+  "notes": "# v1.3.1\n\n- 公网穿透 HTTPS 支持：域名地址自动走 HTTPS（SakuraFrp 隧道 frp-oil.com:18565 可直接填入）\n- 首个正式 Release + 自动更新清单启用\n- 修复历史更新日志中文乱码\n- 联机文档补充 SakuraFrp「自动 HTTPS」开启步骤"
+}
