@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld('gvDesktop', {
   // 服务器设置（本机开服 / 连接远程）
   getServerConfig: () => ipcRenderer.invoke('gv:get-server-config'),
   setServerConfig: (cfg) => ipcRenderer.invoke('gv:set-server-config', cfg),
+  // 内置屏幕/窗口选择器（getDisplayMedia 由主进程提供桌面源）
+  onDisplaySourceList: (cb) => ipcRenderer.on('gv:display-source-list', (_e, list) => cb(list)),
+  pickDisplaySource: (sourceId) => ipcRenderer.send('gv:pick-display-source', sourceId),
+  cancelDisplaySource: () => ipcRenderer.send('gv:cancel-display-source'),
   // 更新进度/状态推送：cb({ stage })
   onUpdateProgress: (cb) => ipcRenderer.on('gv:update-progress', (_e, data) => cb(data)),
   // 启动时后台发现新版本：cb(result)

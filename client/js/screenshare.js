@@ -21,11 +21,7 @@ export async function startScreenShare({ presetKey = DEFAULT_PRESET, withAudio =
       height: { ideal: 1080 },
       frameRate: { ideal: preset.fps, max: preset.fps },
     },
-    audio: withAudio
-      ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-      : false,
-    selfBrowserSurface: 'exclude',
-    surfaceSwitching: 'include',
+    audio: withAudio,
   });
   for (const track of stream.getVideoTracks()) {
     track.contentHint = preset.hint;

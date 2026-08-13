@@ -1,6 +1,6 @@
 // desktop/main.js — GinyScreen桌面版（Electron 主进程）
 // 职责：内嵌启动信令服务器 → 打开主窗口；系统托盘驻留；日志落盘（Debug 版）
-import { app, BrowserWindow, Tray, Menu, nativeImage, clipboard, session, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, clipboard, session, dialog, ipcMain, shell, desktopCapturer } from 'electron';
 import { dirname, join } from 'node:path';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
@@ -43,6 +43,7 @@ let serverHandle = null;
 let appUrl = '';
 let quitting = false;
 let serverPort = 3000;
+let pendingDisplayCapture = null; // { callback, audioRequested, sources }
 
 // ── 服务器连接配置（本机开服 / 连接朋友的远程服务器）──
 let connCfg = { mode: 'local', address: '' };
@@ -148,6 +149,8 @@ async function bootstrap() {
     ['media', 'display-capture', 'audioCapture', 'videoCapture'].includes(permission)
   );
 
+  wireDisplayCapture();
+
   createWindow();
   createTray();
   wireUpdater();
@@ -157,6 +160,52 @@ async function bootstrap() {
   if (app.isPackaged && !isPortableBuild()) {
     autoCheckUpdate();
   }
+}
+
+// ── 屏幕采集：注册 getDisplayMedia 处理器，用桌面源列表做内置选择器 ──
+function wireDisplayCapture() {
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen', 'window'],
+        thumbnailSize: { width: 320, height: 180 },
+        fetchWindowIcons: true,
+      });
+      const list = sources.map((src) => ({
+        id: src.id,
+        name: src.name,
+        type: String(src.id).startsWith('screen:') ? 'screen' : 'window',
+        thumbnail: src.thumbnail && !src.thumbnail.isEmpty() ? src.thumbnail.toDataURL() : '',
+      }));
+      pendingDisplayCapture = { callback, audioRequested: request.audioRequested, sources };
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('gv:display-source-list', list);
+      } else {
+        callback(null);
+      }
+    } catch (err) {
+      logger.error('desktopCapturer 获取源失败:', err);
+      callback(null);
+    }
+  });
+
+  ipcMain.on('gv:pick-display-source', (_e, sourceId) => {
+    const pending = pendingDisplayCapture;
+    pendingDisplayCapture = null;
+    if (!pending) return;
+    const source = pending.sources.find((src) => src.id === sourceId);
+    if (!source) { pending.callback(null); return; }
+    pending.callback({
+      video: source,
+      audio: pending.audioRequested ? 'loopback' : undefined,
+    });
+  });
+
+  ipcMain.on('gv:cancel-display-source', () => {
+    const pending = pendingDisplayCapture;
+    pendingDisplayCapture = null;
+    pending?.callback(null);
+  });
 }
 
 function resolveLogDir(isPackaged) {

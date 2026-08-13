@@ -141,6 +141,18 @@
     </div>
   </div>
 
+  <!-- 共享源选择（桌面版内置；浏览器版用系统原生选择器） -->
+  <div id="modal-source-picker" class="modal" hidden>
+    <div class="modal-card source-picker-card">
+      <h3>🖥️ 选择要共享的屏幕 / 窗口</h3>
+      <p class="dim">共享期间可随时在底部切换画质；勾选「系统声音」可一起传声音。</p>
+      <div id="source-picker-grid" class="source-picker-grid"></div>
+      <div class="modal-actions">
+        <button id="btn-source-cancel" class="btn">取消</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast" hidden></div>
   <script src="/vendor/socket.io/socket.io.js"></script>
   <script type="module" src="/js/main.js"></script>

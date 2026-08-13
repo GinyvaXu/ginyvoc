@@ -32,6 +32,7 @@ async function boot() {
   wireLobby();
   wireRoom();
   wireModals();
+  wireSourcePicker();
   wireErrorReport();
   showLobbyServer();
   ui.showScreen('lobby');
@@ -264,6 +265,23 @@ async function leaveRoom() {
   ui.clearVideos();
   await state.socket.leaveRoom();
   ui.showScreen('lobby');
+}
+
+// ═══════════ 内置共享源选择器（桌面版）═══════════
+function wireSourcePicker() {
+  if (!window.gvDesktop?.onDisplaySourceList) return;
+  ui.setSourcePickHandler((sourceId) => {
+    ui.closeModal('#modal-source-picker');
+    window.gvDesktop.pickDisplaySource(sourceId);
+  });
+  ui.$('#btn-source-cancel').addEventListener('click', () => {
+    ui.closeModal('#modal-source-picker');
+    window.gvDesktop.cancelDisplaySource();
+  });
+  window.gvDesktop.onDisplaySourceList((list) => {
+    ui.renderSourcePicker(list);
+    ui.openModal('#modal-source-picker');
+  });
 }
 
 // ═══════════ 服务器设置 ═══════════
