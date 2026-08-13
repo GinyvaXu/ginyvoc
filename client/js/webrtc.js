@@ -1,193 +1,145 @@
-// webrtc.js — P2P mesh 组网 (音频 + 屏幕共享)
-// 参考: perfect negotiation 模式 (RFC 8829 / w3c webrtc-pc)
-// 规模: 每个频道 mesh 全互联，适合 2~8 人开黑；更大规模可替换为 mediasoup/LiveKit SFU
+// webrtc.js — mesh 连接管理（GinyScreen）
+// 设计：每个对端最多两条单向连接，避免 SDP m-line 匹配/协商冲突：
+//   - inPcs : 我观看对方共享（对方 offer → 我 answer，recvonly）
+//   - outPcs: 我共享给对方（我 addTrack + offer，sendonly）
+// 这样「同时互相共享」「临时停止共享再恢复」都不会破坏协商状态。
+import { applySendParams } from './screenshare.js';
 
-export class PeerMesh {
-  constructor({ userId, signaling, iceServers, audioStream,
-                onPeerAudio, onPeerScreenAudio, onPeerScreen, onPeerScreenStop, onPeerState }) {
-    this.userId = userId;
-    this.signal = signaling;
+export class MeshManager {
+  constructor({ socket, iceServers, myId, onRemoteStream, onPeerState }) {
+    this.socket = socket;
     this.iceServers = iceServers;
-    this.audioStream = audioStream;
-    this.onPeerAudio = onPeerAudio;
-    this.onPeerScreenAudio = onPeerScreenAudio;
-    this.onPeerScreen = onPeerScreen;
-    this.onPeerScreenStop = onPeerScreenStop;
+    this.myId = myId;
+    this.onRemoteStream = onRemoteStream;
     this.onPeerState = onPeerState;
-
-    this.pcs = new Map();              // peerId -> RTCPeerConnection
-    this.screenSenders = new Map();    // peerId -> RTCRtpSender (共享屏幕发送器)
-    this.screenAudioSenders = new Map(); // peerId -> RTCRtpSender (共享系统声音发送器)
-    this.screenStreamIds = new Set();  // 已收到的屏幕共享流 id（用于区分麦克风/系统声音）
-    this.localScreenStream = null;
-    this.makingOffer = false;
+    this.inPcs = new Map();   // peerId -> PC（我观看对方）
+    this.outPcs = new Map();  // peerId -> PC（我共享给对方）
+    this.localStream = null;
   }
 
-  addPeer(peer) {
-    if (this.pcs.has(peer.id)) return;
-    const pc = new RTCPeerConnection({ iceServers: this.iceServers });
-    this.pcs.set(peer.id, pc);
-    console.log('[mesh] addPeer', peer.id, peer.username);
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate) this.signal.sendSignal(peer.id, { candidate: e.candidate.toJSON() });
-    };
-
-    pc.ontrack = (e) => {
-      const stream = e.streams[0];
-      if (!stream) return;
-      if (e.track.kind === 'video') {
-        // 视频轨 = 屏幕共享画面；记录流 id 供音频轨区分麦克风/系统声音
-        this.screenStreamIds.add(stream.id);
-        e.track.onended = () => this.onPeerScreenStop?.(peer.id);
-        this.onPeerScreen?.(peer.id, stream);
-      } else if (e.track.kind === 'audio') {
-        // 麦克风流 vs 共享系统声音流：共享流必然同时带视频轨
-        if (this.screenStreamIds.has(stream.id) || stream.getVideoTracks().length > 0) {
-          this.onPeerScreenAudio?.(peer.id, stream);
-        } else {
-          this.onPeerAudio?.(peer.id, stream);
-        }
-      }
-    };
-
-    pc.onconnectionstatechange = () => {
-      this.onPeerState?.(peer.id, pc.connectionState);
-      console.log('[mesh] peer', peer.id, 'connection', pc.connectionState);
-    };
-
-    if (this.audioStream) {
-      for (const track of this.audioStream.getTracks()) {
-        pc.addTrack(track, this.audioStream);
-      }
-    }
-    pc.onnegotiationneeded = () => this._negotiate(pc, peer.id);
+  _isMe(id) {
+    return typeof this.myId === 'function' ? this.myId() === id : this.myId === id;
   }
 
-  // 音频流后置就绪时调用：为已建立的连接补充音轨（触发重协商）
-  addAudioStream(stream) {
-    if (!stream) return;
-    this.audioStream = stream;
-    for (const [peerId, pc] of this.pcs) {
-      if (pc.signalingState !== 'stable') continue; // 等当前协商完成再补轨
-      const hasAudio = pc.getSenders().some((s) => s.track?.kind === 'audio');
-      if (!hasAudio) {
-        for (const track of stream.getTracks()) pc.addTrack(track, stream);
-      }
-    }
+  outPcsList() {
+    return [...this.outPcs.values()];
   }
 
-  async _negotiate(pc, peerId) {
-    try {
-      this.makingOffer = true;
-      await pc.setLocalDescription();
-      this.signal.sendSignal(peerId, { sdp: pc.localDescription });
-    } catch (err) {
-      console.error('[mesh] negotiate failed:', err);
-    } finally {
-      this.makingOffer = false;
-    }
-  }
-
+  // ── 信令入口 ──
   async handleSignal(from, data) {
-    const pc = this.pcs.get(from);
-    if (!pc) { console.log('[mesh] signal for unknown peer', from, data.sdp?.type || 'ice'); return; }
     try {
-      if (data.candidate) {
-        await pc.addIceCandidate(data.candidate);
-        console.log('[mesh] ice', from);
-        return;
-      }
-      const desc = data.sdp;
-      if (!desc) return;
-
-      const isOffer = desc.type === 'offer';
-      const collision = isOffer && (this.makingOffer || pc.signalingState !== 'stable');
-      if (collision) {
-        if (!this._isPolite(from)) return; // 冲突时 impolite 方忽略
-        await pc.setLocalDescription({ type: 'rollback' });
-      }
-      await pc.setRemoteDescription(desc);
-      console.log('[mesh] setRemote', desc.type, from);
-
-      if (isOffer) {
-        await pc.setLocalDescription();
-        this.signal.sendSignal(from, { sdp: pc.localDescription });
+      if (data.type === 'offer') {
+        await this._answerOffer(from, data);
+      } else if (data.type === 'answer') {
+        const pc = this.outPcs.get(from);
+        if (pc && pc.signalingState === 'have-local-offer') {
+          await pc.setRemoteDescription({ type: 'answer', sdp: data.sdp });
+        }
+      } else if (data.type === 'ice') {
+        const pc = this.outPcs.get(from) || this.inPcs.get(from);
+        if (pc && data.candidate) {
+          try { await pc.addIceCandidate(data.candidate); } catch { /* 过期的候选忽略 */ }
+        }
       }
     } catch (err) {
-      console.error('[mesh] handleSignal failed:', err);
+      console.error('[webrtc] handleSignal 失败', err);
     }
   }
 
-  _isPolite(peerId) {
-    return this.userId < peerId; // id 字典序小的为 polite
+  // 收到对方共享 offer → 创建/复用 inPc 并 answer（recvonly）
+  async _answerOffer(from, data) {
+    let pc = this.inPcs.get(from);
+    if (!pc) {
+      pc = new RTCPeerConnection({ iceServers: this.iceServers });
+      this.inPcs.set(from, pc);
+      pc.ontrack = (e) => {
+        const stream = e.streams?.[0] || new MediaStream([e.track]);
+        this.onRemoteStream?.(from, stream);
+      };
+      pc.onconnectionstatechange = () => this.onPeerState?.(from, pc.connectionState);
+    }
+    // 协商冲突（双方同时发 offer）时先回滚本地 offer
+    if (pc.signalingState !== 'stable') {
+      try { await pc.setLocalDescription({ type: 'rollback' }); } catch { /* 忽略 */ }
+    }
+    await pc.setRemoteDescription({ type: 'offer', sdp: data.sdp });
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    this.socket.signal(from, { type: 'answer', sdp: pc.localDescription.sdp });
   }
 
-  // ---------- 屏幕共享 ----------
-  async shareScreen(stream) {
-    this.localScreenStream = stream;
-    const track = stream.getVideoTracks()[0];
-    if (track) {
-      for (const [peerId, pc] of this.pcs) {
-        const sender = this.screenSenders.get(peerId);
-        if (sender) {
-          await sender.replaceTrack(track); // 同类型替换，无需重协商
-        } else {
-          const s = pc.addTrack(track, stream); // 新增 transceiver，触发重协商
-          this.screenSenders.set(peerId, s);
-        }
-      }
-    }
-    // 系统声音：单独一条音频轨（接收端独立 <audio> 播放，不参与说话检测）
-    const audioTrack = stream.getAudioTracks()[0];
-    if (audioTrack) {
-      for (const [peerId, pc] of this.pcs) {
-        const sender = this.screenAudioSenders.get(peerId);
-        if (sender) {
-          await sender.replaceTrack(audioTrack);
-        } else {
-          const s = pc.addTrack(audioTrack, stream);
-          this.screenAudioSenders.set(peerId, s);
-        }
-      }
+  // ── 共享端 ──
+  startSharing(stream, members) {
+    this.localStream = stream;
+    for (const m of members) {
+      if (!this._isMe(m.id)) this._outTo(m.id);
     }
   }
 
-  async stopScreen() {
-    if (this.localScreenStream) {
-      this.localScreenStream.getTracks().forEach((t) => t.stop());
-      this.localScreenStream = null;
-    }
-    for (const [peerId, sender] of this.screenSenders) {
-      try { await sender.replaceTrack(null); } catch { /* 对端可能已断开 */ }
-      this.screenSenders.delete(peerId);
-    }
-    for (const [peerId, sender] of this.screenAudioSenders) {
-      try { await sender.replaceTrack(null); } catch { /* 对端可能已断开 */ }
-      this.screenAudioSenders.delete(peerId);
-    }
+  // 新成员加入时，若我正在共享 → 向其发起共享连接
+  peerJoined(member) {
+    if (this.localStream && !this._isMe(member.id)) this._outTo(member.id);
   }
 
-  removePeer(peerId) {
-    const pc = this.pcs.get(peerId);
+  async _outTo(peerId) {
+    let pc = this.outPcs.get(peerId);
+    if (!pc) {
+      pc = new RTCPeerConnection({ iceServers: this.iceServers });
+      this.outPcs.set(peerId, pc);
+      pc.onicecandidate = (e) => {
+        if (e.candidate) this.socket.signal(peerId, { type: 'ice', candidate: e.candidate.toJSON() });
+      };
+      pc.onconnectionstatechange = () => this.onPeerState?.(peerId, pc.connectionState);
+      pc.onnegotiationneeded = async () => {
+        try {
+          await pc.setLocalDescription(await pc.createOffer());
+          this.socket.signal(peerId, { type: 'offer', sdp: pc.localDescription.sdp });
+          applySendParams(pc, this._preset);
+        } catch { /* 冲突时等待对方，忽略 */ }
+      };
+    }
+    for (const track of this.localStream.getTracks()) pc.addTrack(track, this.localStream);
+  }
+
+  // 共享中切换画质
+  applyPresetToAll(preset) {
+    this._preset = preset;
+    for (const pc of this.outPcs.values()) applySendParams(pc, preset);
+  }
+
+  // 停止共享：关闭所有出站连接（观看侧会收到 share:update 清理画面）
+  stopSharing() {
+    const stream = this.localStream;
+    this.localStream = null;
+    for (const [peerId, pc] of this.outPcs) {
+      try { pc.close(); } catch { /* 忽略 */ }
+      this.outPcs.delete(peerId);
+    }
+    stream?.getTracks().forEach((t) => {
+      try { t.stop(); } catch { /* 忽略 */ }
+    });
+  }
+
+  // 对方停止共享 / 离开 → 关闭对应的入站连接
+  closeIncoming(peerId) {
+    const pc = this.inPcs.get(peerId);
     if (pc) {
-      try { pc.close(); } catch { /* noop */ }
-      this.pcs.delete(peerId);
+      try { pc.close(); } catch { /* 忽略 */ }
+      this.inPcs.delete(peerId);
     }
-    this.screenSenders.delete(peerId);
-    this.screenAudioSenders.delete(peerId);
   }
 
   closeAll() {
-    for (const id of [...this.pcs.keys()]) this.removePeer(id);
-    if (this.localScreenStream) {
-      this.localScreenStream.getTracks().forEach((t) => t.stop());
-      this.localScreenStream = null;
+    for (const pc of [...this.inPcs.values(), ...this.outPcs.values()]) {
+      try { pc.close(); } catch { /* 忽略 */ }
+    }
+    this.inPcs.clear();
+    this.outPcs.clear();
+    if (this.localStream) {
+      this.localStream.getTracks().forEach((t) => {
+        try { t.stop(); } catch { /* 忽略 */ }
+      });
+      this.localStream = null;
     }
   }
-
-  peerCount() { return this.pcs.size; }
 }
-
-
-

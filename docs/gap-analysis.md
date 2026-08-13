@@ -1,4 +1,8 @@
-# GinyVoC 功能差距分析（现状 vs 预期语音软件）
+> 📦 本文档为 **GinyVoC（v0.6.0 及以前）** 时代的调研/分析存档。GinyScreen v1.0.0 已移除语音通话，专注屏幕共享，内容仅供参考。
+
+---
+
+# GinyScreen 功能差距分析（现状 vs 预期语音软件）
 
 > 基准：Discord / Mumble / TeamSpeak 3 / Kook / YY 的常用功能集。
 > 验证方法：`node scripts/smoke-test.mjs`（信令 12 项）+ 浏览器自动化实测（菜单/弹窗/界面切换/频道加入）+ 双客户端信令验证。

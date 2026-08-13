@@ -1,7 +1,7 @@
 {
-  "name": "ginyvoc",
-  "version": "0.6.0",
-  "description": "GinyVoC - game voice chat with channels & screen sharing (WebRTC mesh + Socket.IO signaling)",
+  "name": "ginyscreen",
+  "version": "1.0.0",
+  "description": "GinyScreen - 一起看屏幕：屏幕共享(含系统声音) · 房间 · WebRTC P2P mesh",
   "main": "desktop/main.js",
   "type": "module",
   "private": true,
@@ -32,9 +32,9 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "com.ginyvoc.app",
-    "productName": "GinyVoC",
-    "copyright": "Copyright (c) 2026 GinyVoC",
+    "appId": "com.ginyscreen.app",
+    "productName": "GinyScreen",
+    "copyright": "Copyright (c) 2026 GinyScreen",
     "asar": true,
     "directories": {
       "output": "build",
@@ -55,13 +55,13 @@
       "icon": "assets/icon.ico"
     },
     "portable": {
-      "artifactName": "GinyVoC-Portable-v${version}.exe"
+      "artifactName": "GinyScreen-Portable-v${version}.exe"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "GinyVoC-Setup-v${version}.exe"
+      "artifactName": "GinyScreen-Setup-v${version}.exe"
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "version": "0.4.0",
-  "url": "https://github.com/GinyvaXu/ginyvoc/releases/download/v0.4.0/GinyVoC-Setup-v0.4.0.exe",
-  "notes": "# v0.4.0\n\n- 项目更名 GinyVoC，全链路清理旧名称\n- 新增 Debug 版 exe 构建（控制台 + 日志 + DevTools）\n- 新增自动更新（帮助 → 检查更新）\n- 菜单/弹窗/界面切换修复\n- 产物与目录全部英文命名"
+  "version": "1.0.0",
+  "url": "https://github.com/GinyvaXu/GinyScreen/releases/download/v1.0.0/GinyScreen-Setup-v1.0.0.exe",
+  "notes": "# v1.0.0\n\n- 全新 GinyScreen：专注屏幕共享，移除语音通话\n- 深色影院式 UI：大屏舞台 + 成员列表 + 底部控制栏\n- 画质预设：文字优先 / 平衡 / 流畅（实时切换）\n- 支持共享系统声音（一起看视频）\n- 房间多人轮流共享，谁都能开播\n- 跨网络联机：蒲公英 / 米西 / SakuraFrp"
 }

@@ -1,4 +1,4 @@
-// desktop/main.js — GinyVoC桌面版（Electron 主进程）
+// desktop/main.js — GinyScreen桌面版（Electron 主进程）
 // 职责：内嵌启动信令服务器 → 打开主窗口；系统托盘驻留；日志落盘（Debug 版）
 import { app, BrowserWindow, Tray, Menu, nativeImage, clipboard, session, dialog, ipcMain, shell } from 'electron';
 import { dirname, join } from 'node:path';
@@ -99,10 +99,10 @@ async function bootstrap() {
   process.env.NODE_ENV = isDebugBuild ? 'debug' : 'production';
   process.env.DEBUG_LOG = isDebugBuild ? '1' : '0';
 
-  const { startGinyVocServer } = await import('../server/app.js');
+  const { startGinyScreenServer } = await import('../server/app.js');
   const { logger } = await import('../server/logger.js');
   logger.work('══════════════════════════════════════════');
-  logger.work('  📻 GinyVoC 桌面版启动中 (Debug 日志已开启)');
+  logger.work('  🖥️ GinyScreen 桌面版启动中 (Debug 日志已开启)');
   logger.work(`  日志目录: ${logDir}`);
   logger.work('══════════════════════════════════════════');
 
@@ -116,14 +116,14 @@ async function bootstrap() {
   }
 
   try {
-    serverHandle = await startGinyVocServer({
+    serverHandle = await startGinyScreenServer({
       port: Number(process.env.PORT || 3000),
       host: '::',          // 双栈监听：本机/局域网/ZeroTier 虚拟网/IPv6 均可访问
       retryOnBusy: true,
     });
   } catch (err) {
     logger.error('服务器启动失败:', err);
-    dialog.showErrorBox('GinyVoC', '服务器启动失败，请查看日志：\n' + (err?.message || String(err)));
+    dialog.showErrorBox('GinyScreen', '服务器启动失败，请查看日志：\n' + (err?.message || String(err)));
     app.quit();
     return;
   }
@@ -134,11 +134,11 @@ async function bootstrap() {
 
   openDebugConsole(logDir);
 
-  app.setAppUserModelId('com.ginyvoc.app');
+  app.setAppUserModelId('com.ginyscreen.app');
 
   await app.whenReady();
 
-  // 权限：麦克风 / 摄像头 / 屏幕共享 自动放行（本软件只加载自家页面）
+  // 权限：屏幕采集 / 系统声音 自动放行（本软件只加载自家页面）
   // 注意：session 必须在 app ready 之后使用
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
     const allow = ['media', 'display-capture', 'audioCapture', 'videoCapture', 'mediaKeySystem'].includes(permission);
@@ -183,9 +183,9 @@ function openDebugConsole(logDir) {
   if (!app.isPackaged || !isDebugBuild) return; // 开发模式日志已在终端可见；正式版不弹控制台
   try {
     const scriptPath = join(logDir, '_debug-console.ps1');
-    const ps = `$Host.UI.RawUI.WindowTitle = 'GinyVoC Debug 控制台'
+    const ps = `$Host.UI.RawUI.WindowTitle = 'GinyScreen Debug 控制台'
 Write-Host '=================================================='
-Write-Host '  GinyVoC Debug 控制台 - 实时日志'
+Write-Host '  GinyScreen Debug 控制台 - 实时日志'
 Write-Host ('  日志目录: ' + '${logDir}')
 Write-Host '  关闭本窗口不影响程序运行；退出程序后窗口自动失效'
 Write-Host '=================================================='
@@ -228,7 +228,7 @@ function createWindow() {
     height: 820,
     minWidth: 960,
     minHeight: 640,
-    title: 'GinyVoC',
+    title: 'GinyScreen',
     icon: iconPath,
     backgroundColor: '#14151a',
     autoHideMenuBar: true,
@@ -258,7 +258,7 @@ function createTray() {
   if (process.platform === 'darwin') return;
   const image = nativeImage.createFromPath(join(__dirname, '..', 'assets', 'tray.png'));
   tray = new Tray(image);
-  tray.setToolTip('GinyVoC');
+  tray.setToolTip('GinyScreen');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '打开主界面', click: () => showMainWindow() },
     { label: '复制访问地址', click: () => clipboard.writeText(remoteOrigin || getLocalUrls(serverPort)[0] || appUrl) },
@@ -315,7 +315,7 @@ function wireUpdater() {
     setTimeout(() => { app.relaunch(); app.exit(0); }, 500); // 切换服务器需重启生效
     return { ok: true, restarting: true };
   });
-  // 界面内退出（帮助 → 退出 GinyVoC）
+  // 界面内退出（帮助 → 退出 GinyScreen）
   ipcMain.on('gv:quit', () => { quitting = true; shutdown(); });
 }
 

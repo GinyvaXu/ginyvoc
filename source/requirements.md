@@ -1,7 +1,11 @@
-# GinyVoC 需求说明
+> 📦 本文档为 **GinyVoC（v0.6.0 及以前）** 时代的调研/分析存档。GinyScreen v1.0.0 已移除语音通话，专注屏幕共享，内容仅供参考。
+
+---
+
+# GinyScreen 需求说明
 
 ## 项目目标
-做一个"联机游戏语音频道 + 屏幕共享"一体的语音软件（GinyVoC），参考 Discord / Mumble /
+做一个"联机游戏语音频道 + 屏幕共享"一体的语音软件（GinyScreen），参考 Discord / Mumble /
 TeamSpeak 等现有产品与 GitHub 开源库，先做可自托管、可运行的 Web 版，后续可打包桌面端。
 
 ## 核心需求

@@ -1,25 +1,25 @@
-# AGENTS.md — GinyVoC（ginyvoc）项目规则与状态
+# AGENTS.md — GinyScreen（GinyScreen）项目规则与状态
 
 ## 项目简介
-自托管的联机游戏语音软件：语音频道 + 屏幕共享 + 房间文字聊天。
-- 浏览器版：Node.js + Express + Socket.IO 信令服务器，WebRTC mesh 语音（Opus）与屏幕共享
+自托管的**屏幕共享**联机工具：房间 + 多人轮流共享 + 系统声音，一起看视频/电影/游戏画面。
+- 浏览器版：Node.js + Express + Socket.IO 信令服务器，WebRTC P2P mesh 媒体（不含语音通话/文字聊天）
 - 桌面版：Electron 壳（`desktop/main.js`）内嵌信令服务器，Windows 便携版/安装版 exe
 
 ## 目录结构
 ```
 server/    信令服务器（index.js CLI 入口 / app.js 可嵌入启动函数 / rooms.js / signaling.js / logger.js）
-client/    Web 客户端（原生 ES Modules，无构建步骤）
+client/    Web 客户端（原生 ES Modules，无构建步骤；index.html + css/style.css + js/main|signaling|screenshare|webrtc|ui.js）
 desktop/   Electron 桌面壳（主进程 main.js + 自动更新 updater.js + preload.cjs）
 assets/    应用图标（icon.png / icon.ico / tray.png，由 scripts/gen-icon.mjs 生成）
 scripts/   构建/测试/导出/归档脚本（build-debug.mjs 构建 Debug 版 exe）
 docs/      调研报告 / 网络架构 / 联机方案(fri-network.md) / 功能差距
-source/     需求文档
+source/    需求文档
 build/     构建temp（electron-builder 输出，不入库）
 installer/ 交付 exe（不入库，走 GitHub Releases）
 logs/      运行日志（不入库）
 versions/  版本归档：vX.Y.Z/src 源码快照入库；dist/installer 二进制不入库
-release/      浏览器版 Debug 自包含导出包（不入库）
-temp/   证书等中间文件（不入库）
+release/   浏览器版 Debug 自包含导出包（不入库）
+temp/      证书等中间文件（不入库）
 update.json   自动更新清单（版本/下载地址/更新说明，随 git 推送）
 ```
 
@@ -27,7 +27,7 @@ update.json   自动更新清单（版本/下载地址/更新说明，随 git �
 ```bash
 npm start               # 浏览器版：启动信令服务器（http://localhost:3000）
 npm run electron        # 桌面版开发运行
-npm test                # 信令冒烟测试（12 项断言，需先 npm start）
+npm test                # 信令冒烟测试（11 项断言，需先 npm start）
 npm run icon            # 重新生成图标
 npm run dist:debug      # 构建 Debug 版 exe（控制台+日志+DevTools，每次迭代必出）
 npm run dist:portable   # 构建便携版 exe（构建前自动从 VERSION 同步版本号）
@@ -47,13 +47,16 @@ npm run archive         # 发布归档：产物/源码快照到 versions/vX.Y.Z/
 - 项目路径含 `&`（ClaudeCode & AI）：npm scripts 一律用 `node node_modules/electron-builder/cli.js` 直调 CLI，不要用 `.bin` 的 .cmd 垫片（cmd 会把路径按 `&` 截断）
 - Electron 主进程：`session.defaultSession` 必须在 `app.whenReady()` 之后使用，否则启动会静默失败
 - 日志：Debug 版双写 work-日期.log / error-日期.log，目录由 LOG_DIR 控制；桌面版写在 exe 旁 logs\
-- WebRTC mesh 适合 2~8 人频道；更大规模需 SFU（mediasoup/LiveKit）
+- **无语音/无聊天**：客户端 media 面只有屏幕画面 + 可选系统声音；不要加回麦克风/文字聊天（用户明确要求专注共享）
+- **mesh 连接模型**：每个对端最多两条单向连接（inPcs 观看 / outPcs 共享），避免 SDP 协商冲突；详见 client/js/webrtc.js
+- **共享停止**：以服务器 `share:update` 为准清理画面（不要依赖 track mute，窗口最小化也会触发）
+- WebRTC mesh 适合 2~4 人共享/观看；更大规模需 SFU（mediasoup/LiveKit，见 docs/tech-alternatives.md）
 - 局域网/公网需 HTTPS 与 TURN，见 README「局域网使用」「公网使用」
 
 ## 当前状态
-- 版本：v0.6.0（本轮：跨网络联机——服务器设置 本机开服/连朋友、双栈监听、SakuraFrp 穿透 + 蒲公英/米西/ZeroTier 组网、打洞失败诊断；此前：VAD 修复/托盘退出/双击进频道/OBS 共享）
+- 版本：v1.0.0（全面重做：移除语音/聊天，专注屏幕共享；影院式 UI；画质预设 + 系统声音；mesh 重构）
 - 分支：main（稳定）/ develop（日常开发）
-- 远程：https://github.com/GinyvaXu/ginyvoc（公开，自动更新依赖公开访问 update.json 与 Releases 资产）
+- 远程：https://github.com/GinyvaXu/GinyScreen（公开，自动更新依赖公开访问 update.json 与 Releases 资产）
 - 自动更新：桌面安装版内置 updater.js（多源清单 + NSIS 静默升级），清单为根目录 update.json
-- 构建产物一律英文命名（GinyVoC-Debug/Portable/Setup-vX.Y.Z.exe）；目录不含中文
+- 构建产物一律英文命名（GinyScreen-Debug/Portable/Setup-vX.Y.Z.exe）；目录不含中文
 - 待办与路线图见 source/requirements.md 与 docs/gap-analysis.md

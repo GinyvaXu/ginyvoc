@@ -1,8 +1,8 @@
-// index.js — ginyvoc 信令服务器 CLI 入口（复用 app.js 的可嵌入启动函数）
+// index.js — GinyScreen 信令服务器 CLI 入口（复用 app.js 的可嵌入启动函数）
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { networkInterfaces } from 'node:os';
-import { startGinyVocServer } from './app.js';
+import { startGinyScreenServer } from './app.js';
 import { logger } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,7 +21,7 @@ if (TURN_URL && TURN_USER && TURN_PASS) {
 
 let serverHandle;
 try {
-  serverHandle = await startGinyVocServer({ port: PORT, host: HOST, useHttps, iceServers });
+  serverHandle = await startGinyScreenServer({ port: PORT, host: HOST, useHttps, iceServers });
 } catch (err) {
   logger.error('服务器启动失败:', err);
   process.exit(1);
@@ -30,14 +30,14 @@ try {
 const { server, port } = serverHandle;
 const proto = useHttps ? 'https' : 'http';
 logger.work('══════════════════════════════════════════');
-logger.work('  📻 GinyVoC 语音服务器已启动 (Debug 版日志已开启)');
+logger.work('  🖥️ GinyScreen 屏幕共享服务器已启动 (Debug 版日志已开启)');
 logger.work(`  日志目录: ${process.env.LOG_DIR || join(process.cwd(), 'temp', 'logs')}`);
 logger.work(`  本机: ${proto}://localhost:${port}`);
 const nets = getLanAddresses();
 if (nets.length) {
   logger.work(`  局域网: ${proto}://${nets[0]}:${port}`);
   if (!useHttps) {
-    logger.work('  ⚠️  非本机访问需 HTTPS 才能用麦克风:');
+    logger.work('  ⚠️  非本机访问需 HTTPS 才能共享屏幕（安全上下文）:');
     logger.work('     npm run certs 生成证书后，HTTPS=1 npm start');
   }
 }

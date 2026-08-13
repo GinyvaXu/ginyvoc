@@ -1,4 +1,5 @@
-// smoke-test.mjs — 端到端信令冒烟测试（全局超时 15s）
+// smoke-test.mjs — GinyScreen 端到端信令冒烟测试（全局超时 15s）
+// 覆盖：创建/加入房间、成员通知、共享状态同步、WebRTC 信令转发、离开清理
 import { io } from 'socket.io-client';
 
 const URL = process.env.TEST_URL || 'http://localhost:3000';
@@ -29,52 +30,46 @@ console.log('已连接两个测试客户端');
 
 const created = await emitAck(A, 'room:create', { username: 'Alice' });
 assert('A 创建房间', !!created.roomId, created.roomId);
-assert('A 获得房间状态(3频道)', created.roomState?.channels?.length === 3);
+assert('A 获得房间状态(1人)', created.roomState?.users?.length === 1);
 const roomId = created.roomId;
 
+const memberJoinedA = new Promise((resolve) => A.once('member:joined', resolve));
 const joined = await emitAck(B, 'room:join', { roomId, username: 'Bob' });
 assert('B 加入房间', !joined.error && joined.roomId === roomId);
 assert('B 收到房间状态(2人)', joined.roomState.users.length === 2);
+const mj = await memberJoinedA;
+assert('A 收到 member:joined(B)', mj.user?.username === 'Bob' && mj.user?.share === false);
 
-const chA = await emitAck(A, 'channel:join', { channelId: 'ch-main' });
-assert('A 加入 ch-main', chA.channelId === 'ch-main' && chA.peers.length === 0);
-
-const userJoinedA = new Promise((resolve) => A.once('user:joined', resolve));
-const chB = await emitAck(B, 'channel:join', { channelId: 'ch-main' });
-assert('B 加入返回 peers=[A]', chB.peers.length === 1 && chB.peers[0].username === 'Alice', JSON.stringify(chB.peers));
-const uj = await userJoinedA;
-assert('A 收到 user:joined(B)', uj.user?.username === 'Bob');
+const shareUpdateB = new Promise((resolve) => B.once('share:update', resolve));
+const stateAfterShare = new Promise((resolve) => B.once('room:state', resolve));
+await emitAck(A, 'share:update', { share: true });
+const su = await shareUpdateB;
+assert('B 收到 share:update(共享中)', su.id === A.id && su.share === true);
+const st = await stateAfterShare;
+const alice = st.users.find((u) => u.username === 'Alice');
+assert('room:state 同步共享标志', alice?.share === true);
 
 const signalB = new Promise((resolve) => B.once('signal', resolve));
-A.emit('signal', { to: B.id, data: { sdp: { type: 'offer', sdp: 'FAKE' } } });
+A.emit('signal', { to: B.id, data: { type: 'offer', sdp: 'FAKE_OFFER' } });
 const got = await signalB;
-assert('信令转发 A→B', got.from === A.id && got.data.sdp?.type === 'offer');
+assert('信令转发 A→B(offer)', got.from === A.id && got.data.type === 'offer');
 
 const signalA = new Promise((resolve) => A.once('signal', resolve));
-B.emit('signal', { to: A.id, data: { sdp: { type: 'answer', sdp: 'FAKE' } } });
+B.emit('signal', { to: A.id, data: { type: 'answer', sdp: 'FAKE_ANSWER' } });
 const got2 = await signalA;
-assert('信令转发 B→A', got2.from === B.id && got2.data.sdp?.type === 'answer');
+assert('信令转发 B→A(answer)', got2.from === B.id && got2.data.type === 'answer');
 
-const roomState2 = await new Promise((resolve) => {
-  B.once('room:state', resolve);
-  A.emit('media:update', { mic: false, screen: true });
-});
-const alice = roomState2.users.find((u) => u.username === 'Alice');
-assert('media:update 同步', alice?.mic === false && alice?.screen === true);
+const iceA = new Promise((resolve) => A.once('signal', resolve));
+B.emit('signal', { to: A.id, data: { type: 'ice', candidate: { candidate: 'candidate:1' } } });
+const got3 = await iceA;
+assert('信令转发 B→A(ice)', got3.from === B.id && got3.data.type === 'ice');
 
-const chat = new Promise((resolve) => B.once('chat:message', resolve));
-A.emit('chat:send', { text: '测试消息' });
-const msg = await chat;
-assert('聊天广播', msg.text === '测试消息' && msg.from === 'Alice');
-
-const afterLeave = new Promise((resolve) => A.once('room:state', resolve));
-B.emit('channel:leave');
-const st = await afterLeave;
-const bob = st.users.find((u) => u.username === 'Bob');
-assert('B 离开频道', bob?.channelId === null);
+const memberLeftA = new Promise((resolve) => A.once('member:left', resolve));
+await emitAck(B, 'room:leave');
+const ml = await memberLeftA;
+assert('A 收到 member:left(B)', ml.id === B.id);
 
 A.emit('room:leave');
-B.emit('room:leave');
 await new Promise((r) => setTimeout(r, 300));
 
 const failed = results.filter((r) => !r[1]);

@@ -3,17 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GinyVoC · 联机语音</title>
+  <title>GinyScreen · 一起看屏幕</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/style.css" />
-  <link rel="stylesheet" href="/css/menu.css" />
 </head>
 <body>
   <!-- 进入页 -->
   <section id="screen-lobby" class="screen lobby">
     <div class="lobby-card">
-      <div class="logo">📻 GinyVoC</div>
-      <p class="tagline">联机游戏语音频道 · 屏幕共享</p>
+      <div class="logo">🖥️ GinyScreen</div>
+      <p class="tagline">屏幕共享 · 一起看视频 / 电影 / 游戏</p>
       <div class="field">
         <label>昵称</label>
         <input id="input-username" type="text" maxlength="16" placeholder="输入昵称" autocomplete="off" />
@@ -27,207 +26,68 @@
         <button id="btn-join" class="btn">加入房间</button>
       </div>
       <div id="lobby-error" class="error" hidden></div>
-      <p class="hint">建议使用 Chrome / Edge。首次进入语音频道时浏览器会请求麦克风权限。</p>
+      <p class="hint">建议使用 Edge / Chrome。共享屏幕时可勾选「系统声音」，适合一起看视频。</p>
       <p class="hint" id="lobby-server"></p>
     </div>
   </section>
 
-  <!-- 主界面 -->
-  <section id="screen-app" class="screen app" hidden>
+  <!-- 房间（影院式） -->
+  <section id="screen-room" class="screen room" hidden>
     <header class="topbar">
-      <div class="room-info">
-        <span class="room-name">📻 GinyVoC</span>
-        <span id="room-code" class="room-code" title="点击复制房间号">房间号 <b>--</b></span>
-        <span id="conn-status" class="conn-status ok">● 已连接</span>
-      </div>
-
-      <!-- 顶部菜单栏：统筹所有功能 -->
-      <nav class="menubar" id="menubar">
-        <div class="menu" data-menu="voice">
-          <button class="menu-btn" type="button">语音 <span class="caret">▾</span></button>
-          <div class="menu-panel" id="menu-voice">
-            <div class="menu-group-title">说话模式</div>
-            <button class="menu-item" data-action="set-mode" data-mode="vad"><span class="mi">🎙️</span><span class="mi-text">语音检测 (VAD)</span><span class="mi-check">✓</span></button>
-            <button class="menu-item" data-action="set-mode" data-mode="ptt"><span class="mi">🎤</span><span class="mi-text">按键说话 (PTT)</span><span class="mi-check">✓</span></button>
-            <button class="menu-item" data-action="set-mode" data-mode="always"><span class="mi">🔊</span><span class="mi-text">自由麦</span><span class="mi-check">✓</span></button>
-            <div class="menu-sep"></div>
-            <button class="menu-item" data-action="toggle-mic"><span class="mi" id="mi-mic">🎤</span><span class="mi-text">麦克风</span><span class="mi-state" id="menu-mic-state">开</span></button>
-            <button class="menu-item" data-action="toggle-deafen"><span class="mi">😵</span><span class="mi-text">闭麦（不听他人）</span><span class="mi-state" id="menu-deafen-state">关</span></button>
-            <div class="menu-sep"></div>
-            <div class="menu-info-row">PTT 按键：<kbd id="menu-ptt-key">空格</kbd></div>
-            <button class="menu-item" data-action="capture-ptt"><span class="mi">⌨️</span><span class="mi-text">重新设置 PTT 按键</span></button>
-            <div class="menu-sep"></div>
-            <button class="menu-item" data-action="open-settings"><span class="mi">🎛️</span><span class="mi-text">音频设置（输入/输出设备）</span></button>
+      <div class="brand">🖥️ <b>GinyScreen</b></div>
+      <button id="btn-copy-room" class="chip" title="点击复制房间号">房间号 <b id="room-code">--</b> 🔗</button>
+      <span id="conn-status" class="conn-status ok">● 已连接</span>
+      <div class="top-actions">
+        <button id="btn-server-settings" class="btn small">服务器设置</button>
+        <div class="dropdown-wrap">
+          <button id="btn-help" class="btn small">帮助 ▾</button>
+          <div id="menu-help" class="dropdown" hidden>
+            <button data-action="check-update">🔄 检查更新</button>
+            <button data-action="open-about">📻 关于 GinyScreen</button>
+            <button data-action="quit-app">⏻ 退出 GinyScreen</button>
           </div>
         </div>
-
-        <div class="menu" data-menu="screen">
-          <button class="menu-btn" type="button">屏幕 <span class="caret">▾</span></button>
-          <div class="menu-panel" id="menu-screen">
-            <div class="menu-group-title">共享来源</div>
-            <select id="menu-share-source" class="menu-select">
-              <option value="screen">屏幕 / 窗口 / 标签页</option>
-              <option value="obs">OBS 虚拟摄像头</option>
-            </select>
-            <label class="menu-check"><input id="menu-share-audio" type="checkbox" /> 同时共享系统声音（看视频/电影）</label>
-            <button class="menu-item" data-action="toggle-screen"><span class="mi">🖥️</span><span class="mi-text" id="menu-screen-text">共享屏幕</span><span class="mi-state" id="menu-screen-state">未共享</span></button>
-            <div class="menu-sep"></div>
-            <div class="menu-info-row" id="menu-screen-tip">选择 OBS 虚拟摄像头可共享 OBS 合成画面（弹幕/字幕/画中画）</div>
-          </div>
-        </div>
-
-        <div class="menu" data-menu="room">
-          <button class="menu-btn" type="button">房间 <span class="caret">▾</span></button>
-          <div class="menu-panel" id="menu-room">
-            <div class="menu-info-row">房间号：<b id="menu-room-code">--</b></div>
-            <button class="menu-item" data-action="copy-link"><span class="mi">🔗</span><span class="mi-text">复制邀请链接</span></button>
-            <div class="menu-sep"></div>
-            <button class="menu-item danger" data-action="leave-room"><span class="mi">🚪</span><span class="mi-text">离开房间</span></button>
-          </div>
-        </div>
-
-        <div class="menu" data-menu="settings">
-          <button class="menu-btn" type="button">设置 <span class="caret">▾</span></button>
-          <div class="menu-panel menu-panel-wide" id="menu-settings">
-            <div class="menu-group-title">输入设备（麦克风）</div>
-            <select id="menu-device" class="menu-select"></select>
-            <div class="menu-group-title">输出设备（扬声器）</div>
-            <select id="menu-output-device" class="menu-select"></select>
-            <div class="menu-group-title">VAD 灵敏度 <span id="menu-vad-value" class="dim">0.020</span></div>
-            <input id="menu-vad" class="menu-range" type="range" min="0.005" max="0.06" step="0.001" />
-            <label class="menu-check"><input id="menu-ns" type="checkbox" checked /> 降噪 / 回声消除</label>
-            <div class="menu-sep"></div>
-            <button class="menu-item" data-action="open-settings"><span class="mi">⚙️</span><span class="mi-text">完整设置窗口</span></button>
-          </div>
-        </div>
-
-        <div class="menu" data-menu="help">
-          <button class="menu-btn" type="button">帮助 <span class="caret">▾</span></button>
-          <div class="menu-panel" id="menu-help">
-            <button class="menu-item" data-action="open-shortcuts"><span class="mi">⌨️</span><span class="mi-text">快捷键说明</span></button>
-            <button class="menu-item" data-action="open-about"><span class="mi">📻</span><span class="mi-text">关于GinyVoC</span></button>
-            <button class="menu-item" data-action="check-update"><span class="mi">🔄</span><span class="mi-text">检查更新</span></button>
-            <button class="menu-item" data-action="open-server-settings"><span class="mi">🖧</span><span class="mi-text">服务器设置</span></button>
-            <div class="menu-sep"></div>
-            <button class="menu-item danger" data-action="quit-app"><span class="mi">⏻</span><span class="mi-text">退出 GinyVoC</span></button>
-            <div class="menu-sep"></div>
-            <div class="menu-info-row" id="menu-debug-state"></div>
-            <div class="menu-info-row" id="menu-update-state">更新：未检查</div>
-          </div>
-        </div>
-      </nav>
-
-      <div class="topbar-actions">
-        <button id="btn-copy-link" class="btn small" title="复制邀请链接">🔗 邀请</button>
-        <button id="btn-leave" class="btn small danger" title="离开房间">离开</button>
       </div>
     </header>
 
-    <div class="layout">
+    <main class="room-main">
       <aside class="sidebar">
-        <div class="sidebar-title">语音频道</div>
-        <div id="channel-list" class="channel-list"></div>
+        <div class="sidebar-title">成员 <span id="member-count" class="chip">0</span></div>
+        <ul id="member-list" class="member-list"></ul>
+        <div class="sidebar-foot">
+          <button id="btn-copy-link" class="btn block">🔗 复制邀请链接</button>
+          <button id="btn-leave" class="btn block danger">🚪 离开房间</button>
+        </div>
       </aside>
 
-      <main class="content">
-        <section id="screen-grid" class="screen-grid"></section>
-        <section class="channel-panel">
-          <div class="channel-panel-head">
-            <span id="current-channel-name" class="title">未加入频道</span>
-            <span id="channel-member-count" class="muted"></span>
+      <section class="stage" id="stage">
+        <div id="stage-main" class="stage-main">
+          <div class="empty-state">
+            <div class="empty-icon">🖥️</div>
+            <p class="empty-title">还没有人共享屏幕</p>
+            <p class="dim">点击下方「共享屏幕」，让大家一起看</p>
+            <button id="btn-empty-share" class="btn primary big">共享屏幕</button>
           </div>
-          <div id="member-list" class="member-list"></div>
-        </section>
-      </main>
+        </div>
+        <div id="stage-minis" class="stage-minis"></div>
+      </section>
+    </main>
 
-      <aside class="chat">
-        <div class="chat-title">房间聊天</div>
-        <div id="chat-messages" class="chat-messages"></div>
-        <form id="chat-form" class="chat-form">
-          <input id="chat-input" type="text" maxlength="500" placeholder="发送消息…" autocomplete="off" />
-        </form>
-      </aside>
-    </div>
-
-    <footer class="controlbar">
-      <div class="control-left">
-        <button id="btn-mic" class="ctrl-btn active" title="麦克风开关">🎤<span>麦克风</span></button>
-        <button id="btn-deafen" class="ctrl-btn" title="闭麦">🔇<span>闭麦</span></button>
-        <button id="btn-mode" class="ctrl-btn" title="说话模式">🎙️<span>VAD</span></button>
-        <span id="ptt-hint" class="ptt-hint" hidden>按住 <kbd>Space</kbd> 说话</span>
-      </div>
-      <div class="control-right">
-        <button id="btn-screen" class="ctrl-btn" title="共享屏幕">🖥️<span>共享屏幕</span></button>
-        <button id="btn-settings" class="ctrl-btn" title="设置">⚙️<span>设置</span></button>
-      </div>
+    <footer class="bottombar">
+      <button id="btn-share" class="btn primary share-btn">🖥️ 共享屏幕</button>
+      <label class="preset-label">画质
+        <select id="preset-select">
+          <option value="detail">文字优先（清晰）</option>
+          <option value="balanced" selected>平衡（推荐）</option>
+          <option value="motion">流畅（高帧率）</option>
+        </select>
+      </label>
+      <label class="check"><input id="share-audio" type="checkbox" /> 同时共享系统声音</label>
+      <span id="share-status" class="share-status"></span>
+      <span class="spacer"></span>
+      <span class="dim hint">点击画面可聚焦 · 房间内谁都可以共享</span>
     </footer>
   </section>
-
-  <!-- 设置弹窗（完整版） -->
-  <div id="modal-settings" class="modal" hidden>
-    <div class="modal-card">
-      <h3>⚙️ 完整设置</h3>
-      <div class="field">
-        <label>输入设备（麦克风）</label>
-        <select id="set-device"></select>
-      </div>
-      <div class="field">
-        <label>输出设备（扬声器）</label>
-        <select id="set-output-device"></select>
-      </div>
-      <div class="field">
-        <label>说话模式</label>
-        <div class="radio-row">
-          <label><input type="radio" name="mode" value="vad" checked /> 语音检测 (VAD)</label>
-          <label><input type="radio" name="mode" value="ptt" /> 按键说话 (PTT)</label>
-          <label><input type="radio" name="mode" value="always" /> 自由麦</label>
-        </div>
-      </div>
-      <div class="field">
-        <label>PTT 按键 <span id="ptt-key-label" class="muted"></span></label>
-        <button id="btn-ptt-key" class="btn small">点击设置按键</button>
-      </div>
-      <div class="field">
-        <label>VAD 灵敏度 <span id="vad-value" class="muted"></span></label>
-        <input id="set-vad" type="range" min="0.005" max="0.06" step="0.001" />
-      </div>
-      <div class="field">
-        <label><input id="set-ns" type="checkbox" checked /> 降噪 / 回声消除</label>
-      </div>
-      <div class="modal-actions">
-        <button id="btn-settings-close" class="btn">完成</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 快捷键说明 -->
-  <div id="modal-shortcuts" class="modal" hidden>
-    <div class="modal-card">
-      <h3>⌨️ 快捷键</h3>
-      <div class="shortcut-grid">
-        <div class="shortcut-row"><kbd>Space</kbd><span>PTT 模式下按住说话</span></div>
-        <div class="shortcut-row"><kbd>Esc</kbd><span>关闭菜单 / 取消按键捕获</span></div>
-      </div>
-      <p class="hint">其余功能请使用顶部菜单栏或底部控制栏。</p>
-      <div class="modal-actions">
-        <button id="btn-shortcuts-close" class="btn">关闭</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 关于 -->
-  <div id="modal-about" class="modal" hidden>
-    <div class="modal-card about-card">
-      <div class="about-logo">📻</div>
-      <h3>GinyVoC</h3>
-      <p class="dim">版本 <span id="about-version">--</span></p>
-      <p class="dim">联机游戏语音频道 · 屏幕共享 · 房间文字聊天</p>
-      <p class="dim">WebRTC mesh P2P · 服务器零媒体成本</p>
-      <div class="modal-actions">
-        <button id="btn-about-close" class="btn">关闭</button>
-      </div>
-    </div>
-  </div>
 
   <!-- 服务器设置 -->
   <div id="modal-server" class="modal" hidden>
@@ -247,11 +107,21 @@
         <label>本机可访问地址（发给好友）</label>
         <div id="server-local-urls" class="server-urls dim"></div>
       </div>
-      <p class="hint">跨网络联机任选一种：① 蒲公英/米西/ZeroTier 组网后填虚拟 IP（语音最稳）；② 用 SakuraFrp 把本机 3000 端口穿透成公网地址发给好友（只有开服者要装）。切换后应用会自动重启。</p>
+      <p class="hint">跨网络联机任选一种：① 蒲公英/米西/ZeroTier 组网后填虚拟 IP（最稳）；② 用 SakuraFrp 把本机 3000 端口穿透成公网地址发给好友（只有开服者要装）。切换后应用会自动重启。</p>
       <div class="modal-actions">
         <button id="btn-server-cancel" class="btn">取消</button>
         <button id="btn-server-save" class="btn primary">保存并重启</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 关于 -->
+  <div id="modal-about" class="modal" hidden>
+    <div class="modal-card">
+      <h3>📻 关于 GinyScreen</h3>
+      <p class="dim">版本 <b id="about-version">--</b></p>
+      <p>屏幕共享 · 一起看视频 / 电影 / 游戏。WebRTC P2P 直连，画面不经过服务器。</p>
+      <div class="modal-actions"><button id="btn-about-close" class="btn">关闭</button></div>
     </div>
   </div>
 
@@ -272,7 +142,7 @@
   </div>
 
   <div id="toast" class="toast" hidden></div>
-
+  <script src="/vendor/socket.io/socket.io.js"></script>
   <script type="module" src="/js/main.js"></script>
 </body>
 </html>

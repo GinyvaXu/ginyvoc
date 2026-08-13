@@ -1,4 +1,8 @@
-# GinyVoC 技术路线替代方案对比
+> 📦 本文档为 **GinyVoC（v0.6.0 及以前）** 时代的调研/分析存档。GinyScreen v1.0.0 已移除语音通话，专注屏幕共享，内容仅供参考。
+
+---
+
+# GinyScreen 技术路线替代方案对比
 
 > 当前路线：**原生 Web（HTML/JS）+ WebRTC mesh + Node.js(Socket.IO) 信令 + Electron 桌面壳**。
 > 本文对比 5 条替代路线，给出特点、优缺点与适用场景，供版本规划决策。

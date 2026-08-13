@@ -1,35 +1,30 @@
-// signaling.js — Socket.IO 客户端封装 + 事件分发
-import { io } from '/vendor/socket.io/socket.io.esm.min.js';
-
-export function createSignaling(handlers) {
+// signaling.js — Socket.IO 客户端封装（房间/成员/共享状态 + WebRTC 信令转发）
+export function connectSignaling({ onState, onSignal, onMemberJoined, onMemberLeft, onShareUpdate, onError }) {
   const socket = io({ transports: ['websocket', 'polling'] });
-  socket.on('connect', () => console.log('[ginyvoc] socket connected', socket.id));
-  socket.on('connect_error', (e) => console.log('[ginyvoc] socket connect_error', e.message));
 
-  socket.on('room:state', (state) => handlers.onRoomState?.(state));
-  socket.on('user:joined', (payload) => handlers.onUserJoined?.(payload));
-  socket.on('signal', (payload) => handlers.onSignal?.(payload));
-  socket.on('chat:message', (msg) => handlers.onChat?.(msg));
-  socket.on('connect_error', (err) => handlers.onError?.(`连接服务器失败: ${err.message}`));
-  socket.on('disconnect', () => handlers.onDisconnect?.());
+  socket.on('room:state', (s) => onState?.(s));
+  socket.on('signal', (p) => onSignal?.(p));
+  socket.on('member:joined', (p) => onMemberJoined?.(p));
+  socket.on('member:left', (p) => onMemberLeft?.(p));
+  socket.on('share:update', (p) => onShareUpdate?.(p));
+  socket.on('connect_error', () => onError?.('无法连接服务器，请检查网络或服务器设置'));
+  socket.on('disconnect', (reason) => {
+    if (reason === 'io server disconnect' || reason === 'transport close') onError?.('与服务器断开连接');
+  });
 
-  function emitAck(event, payload = {}) {
+  function emitAck(event, payload) {
     return new Promise((resolve) => {
-      socket.emit(event, payload, (res) => resolve(res ?? { ok: true }));
+      socket.emit(event, payload, (res) => resolve(res || { ok: true }));
     });
   }
 
   return {
+    id: () => socket.id,
     createRoom: (username) => emitAck('room:create', { username }),
     joinRoom: (roomId, username) => emitAck('room:join', { roomId, username }),
-    leaveRoom: () => emitAck('room:leave'),
-    joinChannel: (channelId) => emitAck('channel:join', { channelId }),
-    leaveChannel: () => emitAck('channel:leave'),
-    sendSignal: (to, data) => socket.emit('signal', { to, data }),
-    updateMedia: (patch) => emitAck('media:update', patch),
-    sendChat: (text) => emitAck('chat:send', { text }),
-    reportError: (info) => socket.emit('client:error', info),
-    id: () => socket.id,
+    leaveRoom: () => emitAck('room:leave', {}),
+    setShare: (share) => emitAck('share:update', { share }),
+    signal: (to, data) => socket.emit('signal', { to, data }),
+    reportError: (payload) => socket.emit('client:error', payload),
   };
 }
-

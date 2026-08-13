@@ -24,7 +24,7 @@ function emit(kind, tag, args) {
 }
 
 export const logger = {
-  /** 工作日志：服务器生命周期、房间/频道/连接等关键事件 */
+  /** 工作日志：服务器生命周期、房间/成员/连接等关键事件 */
   work: (...args) => emit('work', 'INFO', args),
   /** 报错日志：服务器异常 + 客户端上报的 JS 错误 */
   error: (...args) => emit('error', 'ERROR', args),

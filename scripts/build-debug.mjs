@@ -17,7 +17,7 @@ const args = [
   '--win',
   'portable',
   '-c.directories.output=build/debug',
-  `-c.portable.artifactName=GinyVoC-Debug-v${version}.exe`,
+  `-c.portable.artifactName=GinyScreen-Debug-v${version}.exe`,
   '-c.win.icon=assets/icon.ico',
 ];
 console.log(`▶ 构建 Debug 版 v${version}（控制台 + 日志 + DevTools）...`);
@@ -26,4 +26,4 @@ if (r.status !== 0) {
   console.error('Debug 版构建失败');
   process.exit(r.status ?? 1);
 }
-console.log(`✅ Debug 版已生成: build/debug/GinyVoC-Debug-v${version}.exe`);
+console.log(`✅ Debug 版已生成: build/debug/GinyScreen-Debug-v${version}.exe`);

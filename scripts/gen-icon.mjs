@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const assetsDir = join(__dirname, '..', 'assets');
 mkdirSync(assetsDir, { recursive: true });
 
-// ── 绘制：深色圆角机身 + 绿色扬声器圆盘 + 天线 ──
+// ── 绘制：深色显示器机身 + 蓝紫渐变屏 + 白色播放键 + 底座 ──
 function draw(size) {
   const px = new Float64Array(size * size * 4); // RGBA 0..255
   const put = (x, y, r, g, b, a) => {
@@ -22,64 +22,85 @@ function draw(size) {
     if (dx <= 0 && dy <= 0) return true;
     return Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) <= rad;
   };
-  const inCircle = (x, y, cx, cy, r) => Math.hypot(x - cx, y - cy) <= r;
+  // 三角形（播放键）点内判断：质心坐标法
+  const inTriangle = (x, y, ax, ay, bx, by, cx, cy) => {
+    const s1 = (bx - ax) * (y - ay) - (by - ay) * (x - ax);
+    const s2 = (cx - bx) * (y - by) - (cy - by) * (x - bx);
+    const s3 = (ax - cx) * (y - cy) - (ay - cy) * (x - cx);
+    const neg = (s1 < 0) || (s2 < 0) || (s3 < 0);
+    const pos = (s1 > 0) || (s2 > 0) || (s3 > 0);
+    return !(neg && pos);
+  };
 
   const cx = size / 2;
-  const cy = size / 2 + size * 0.06;
-  const bw = size * 0.62;
-  const bh = size * 0.5;
-  const br = size * 0.13;
-  const bodyTop = cy - bh / 2;
-  const bodyBottom = cy + bh / 2;
+  const cy = size / 2 + size * 0.02;
+  const sw = size * 0.68;   // 屏幕宽
+  const sh = size * 0.46;   // 屏幕高
+  const sr = size * 0.06;   // 圆角
+  const screenTop = cy - sh / 2;
+  const screenBottom = cy + sh / 2;
 
-  // 机身
-  for (let y = Math.floor(bodyTop); y <= Math.ceil(bodyBottom); y++) {
-    for (let x = Math.floor(cx - bw / 2); x <= Math.ceil(cx + bw / 2); x++) {
-      if (inRoundRect(x, y, cx, cy, bw, bh, br)) put(x, y, 31, 36, 48, 255);
+  // 屏幕机身（深色）
+  for (let y = Math.floor(screenTop); y <= Math.ceil(screenBottom); y++) {
+    for (let x = Math.floor(cx - sw / 2); x <= Math.ceil(cx + sw / 2); x++) {
+      if (inRoundRect(x, y, cx, cy, sw, sh, sr)) put(x, y, 26, 32, 46, 255);
     }
   }
   // 机身边框高光
-  const edgeW = Math.max(1, size * 0.02);
-  for (let y = Math.floor(bodyTop); y <= Math.ceil(bodyBottom); y++) {
-    for (let x = Math.floor(cx - bw / 2); x <= Math.ceil(cx + bw / 2); x++) {
-      if (inRoundRect(x, y, cx, cy, bw, bh, br)) {
+  const edgeW = Math.max(1, size * 0.018);
+  for (let y = Math.floor(screenTop); y <= Math.ceil(screenBottom); y++) {
+    for (let x = Math.floor(cx - sw / 2); x <= Math.ceil(cx + sw / 2); x++) {
+      if (inRoundRect(x, y, cx, cy, sw, sh, sr)) {
         const edge = Math.min(
-          Math.abs(x - (cx - bw / 2)), Math.abs(x - (cx + bw / 2)),
-          Math.abs(y - bodyTop), Math.abs(y - bodyBottom)
+          Math.abs(x - (cx - sw / 2)), Math.abs(x - (cx + sw / 2)),
+          Math.abs(y - screenTop), Math.abs(y - screenBottom)
         );
-        if (edge <= edgeW) put(x, y, 148, 163, 184, 255);
+        if (edge <= edgeW) put(x, y, 84, 97, 122, 255);
       }
     }
   }
-  // 扬声器圆盘（绿色）
-  const sr = size * 0.16;
-  const scx = cx;
-  const scy = cy;
-  for (let y = Math.floor(scy - sr); y <= Math.ceil(scy + sr); y++) {
-    for (let x = Math.floor(scx - sr); x <= Math.ceil(scx + sr); x++) {
-      if (inCircle(x, y, scx, scy, sr)) put(x, y, 74, 222, 128, 255);
+  // 内屏（蓝紫渐变）
+  const pad = size * 0.045;
+  const iw = sw - pad * 2;
+  const ih = sh - pad * 2;
+  const ir = Math.max(1, sr - pad);
+  for (let y = Math.floor(screenTop + pad); y <= Math.ceil(screenBottom - pad); y++) {
+    for (let x = Math.floor(cx - iw / 2); x <= Math.ceil(cx + iw / 2); x++) {
+      if (!inRoundRect(x, y, cx, cy, iw, ih, ir)) continue;
+      const t = (y - (screenTop + pad)) / (ih - 1);
+      const r = Math.round(0x2e + (0x1b - 0x2e) * t);
+      const g = Math.round(0x44 + (0x26 - 0x44) * t);
+      const b = Math.round(0x6e + (0x3a - 0x6e) * t);
+      put(x, y, r, g, b, 255);
     }
   }
-  // 扬声器内圈
-  const ir = size * 0.08;
-  for (let y = Math.floor(scy - ir); y <= Math.ceil(scy + ir); y++) {
-    for (let x = Math.floor(scx - ir); x <= Math.ceil(scx + ir); x++) {
-      if (inCircle(x, y, scx, scy, ir)) put(x, y, 20, 24, 33, 255);
+  // 播放键（白色三角，略向右偏移使其视觉居中）
+  const tx = cx + size * 0.015;
+  const ty = cy + size * 0.01;
+  const half = size * 0.09;
+  const apexX = tx + half * 0.62;
+  for (let y = Math.floor(ty - half); y <= Math.ceil(ty + half); y++) {
+    for (let x = Math.floor(tx - half); x <= Math.ceil(tx + half); x++) {
+      if (inTriangle(x, y, tx - half, ty - half, tx - half, ty + half, apexX, ty)) {
+        put(x, y, 240, 245, 255, 255);
+      }
     }
   }
-  // 天线（灰杆 + 黄色圆头）
-  const ax = cx;
-  const endY = bodyTop - size * 0.2;
-  const knobR = Math.max(1, size * 0.045);
-  const lineW = Math.max(1, size * 0.035);
-  for (let y = Math.floor(endY); y <= Math.ceil(bodyTop); y++) {
-    for (let x = Math.floor(ax - lineW / 2); x <= Math.ceil(ax + lineW / 2); x++) {
-      put(x, y, 148, 163, 184, 255);
+  // 底座：竖杆 + 圆角横条
+  const standW = Math.max(2, size * 0.05);
+  const standTop = screenBottom;
+  const standBottom = screenBottom + size * 0.09;
+  for (let y = Math.floor(standTop); y <= Math.ceil(standBottom); y++) {
+    for (let x = Math.floor(cx - standW / 2); x <= Math.ceil(cx + standW / 2); x++) {
+      put(x, y, 40, 48, 66, 255);
     }
   }
-  for (let y = Math.floor(endY - knobR); y <= Math.ceil(endY + knobR); y++) {
-    for (let x = Math.floor(ax - knobR); x <= Math.ceil(ax + knobR); x++) {
-      if (inCircle(x, y, ax, endY, knobR)) put(x, y, 251, 191, 36, 255);
+  const baseW = size * 0.34;
+  const baseH = size * 0.045;
+  const baseCy = standBottom + size * 0.025;
+  for (let y = Math.floor(baseCy - baseH / 2); y <= Math.ceil(baseCy + baseH / 2); y++) {
+    for (let x = Math.floor(cx - baseW / 2); x <= Math.ceil(cx + baseW / 2); x++) {
+      if (inRoundRect(x, y, cx, baseCy, baseW, baseH, size * 0.02)) put(x, y, 56, 66, 90, 255);
     }
   }
 

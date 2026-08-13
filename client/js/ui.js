@@ -1,144 +1,137 @@
-// ui.js — DOM 渲染
-export const ui = {
-  $: (sel) => document.querySelector(sel),
+// ui.js — DOM 工具 + 房间渲染（成员列表 / 舞台 / 弹窗 / toast）
+export const $ = (sel) => document.querySelector(sel);
 
-  screen(name) {
-    this.$('#screen-lobby').hidden = name !== 'lobby';
-    this.$('#screen-app').hidden = name !== 'app';
-  },
+let toastTimer = null;
+export function toast(msg, ms = 3200) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, ms);
+}
 
-  // ---------- 房间 ----------
-  renderRoom(state) {
-    this.roomState = state;
-    this.$('#room-code').innerHTML = `房间号 <b>${state.id}</b>`;
-    this._renderChannels(state);
-    this._renderMembers(state);
-  },
+export function showScreen(name) {
+  $('#screen-lobby').hidden = name !== 'lobby';
+  $('#screen-room').hidden = name !== 'room';
+}
 
-  _renderChannels(state) {
-    const list = this.$('#channel-list');
-    list.innerHTML = '';
-    for (const ch of state.channels) {
-      const item = document.createElement('div');
-      item.className = 'channel-item';
-      item.dataset.channelId = ch.id;
-      const isCurrent = this.currentChannel === ch.id;
-      if (isCurrent) item.classList.add('active');
-      item.innerHTML = `
-        <span class="channel-icon">${ch.type === 'voice' ? '🔊' : '💬'}</span>
-        <span class="channel-name"></span>
-        <span class="count">${ch.members.length}</span>`;
-      item.querySelector('.channel-name').textContent = ch.name;
-      item.title = '双击进入语音频道';
-      item.addEventListener('dblclick', () => this.onChannelClick?.(ch.id, isCurrent));
-      list.appendChild(item);
+// ── 成员列表 ──
+export function renderMembers(members, meId) {
+  const list = $('#member-list');
+  $('#member-count').textContent = members.length;
+  list.innerHTML = '';
+  for (const m of members) {
+    const li = document.createElement('li');
+    li.className = 'member-item' + (m.id === meId ? ' me' : '');
+    const avatar = document.createElement('span');
+    avatar.className = 'member-avatar';
+    avatar.textContent = (m.username || '?')[0].toUpperCase();
+    const name = document.createElement('span');
+    name.className = 'member-name';
+    name.textContent = m.username + (m.id === meId ? '（我）' : '');
+    li.append(avatar, name);
+    if (m.share) {
+      const badge = document.createElement('span');
+      badge.className = 'share-badge';
+      badge.textContent = '共享中';
+      li.append(badge);
     }
-  },
+    list.append(li);
+  }
+}
 
-  _renderMembers(state) {
-    const panel = this.$('#member-list');
-    panel.innerHTML = '';
-    const me = state.users.find((u) => u.id === this.meId);
-    this.$('#current-channel-name').textContent = this.currentChannel
-      ? (state.channels.find((c) => c.id === this.currentChannel)?.name ?? '未知频道')
-      : '未加入频道';
-    this.$('#channel-member-count').textContent = '';
+// ── 舞台渲染 ──
+// views = { local: {stream, username} | null, remotes: [{id, username, stream}] }
+// focused: 'local' 或 remote id 或 null
+let onFocus = null;
+export function setFocusHandler(fn) { onFocus = fn; }
 
-    if (!this.currentChannel) {
-      const empty = document.createElement('div');
-      empty.className = 'muted';
-      empty.textContent = '双击左侧频道加入语音';
-      panel.appendChild(empty);
-      return;
-    }
+export function renderStage(views, focused) {
+  const main = $('#stage-main');
+  const minis = $('#stage-minis');
+  const all = [];
+  if (views.local) all.push({ id: 'local', ...views.local });
+  for (const r of views.remotes) all.push({ id: r.id, ...r });
+  if (!all.length) {
+    main.classList.add('empty');
+    main.innerHTML = '<div class="empty-state">' +
+      '<div class="empty-icon">🖥️</div>' +
+      '<p class="empty-title">还没有人共享屏幕</p>' +
+      '<p class="dim">点击下方「共享屏幕」，让大家一起看</p>' +
+      '<button id="btn-empty-share" class="btn primary big">共享屏幕</button>' +
+      '</div>';
+    minis.innerHTML = '';
+    return;
+  }
+  main.classList.remove('empty');
+  const target = focused && all.some((v) => v.id === focused) ? focused : all[0].id;
+  const mainView = all.find((v) => v.id === target);
+  const others = all.filter((v) => v.id !== target);
 
-    const members = state.users.filter((u) => u.channelId === this.currentChannel);
-    this.$('#channel-member-count').textContent = `${members.length} 人在线`;
+  main.innerHTML = '';
+  main.append(tile(mainView, true));
 
-    for (const u of members) {
-      const div = document.createElement('div');
-      div.className = 'member';
-      div.dataset.userId = u.id;
-      const isMe = u.id === this.meId;
-      if (isMe && me?.deaf) div.classList.add('deaf');
-      div.innerHTML = `
-        <div class="avatar"></div>
-        <span class="uname"></span>
-        <span class="badges">
-          <span class="badge-mic">${u.mic && !u.deaf ? '🎤' : '🔇'}</span>
-          <span class="badge-screen" ${u.screen ? '' : 'hidden'}>🖥️</span>
-        </span>
-        <span class="meter"><i></i></span>`;
-      div.querySelector('.avatar').textContent = u.username.slice(0, 1).toUpperCase();
-      div.querySelector('.uname').textContent = u.username + (isMe ? ' (我)' : '');
-      panel.appendChild(div);
-    }
-  },
+  minis.innerHTML = '';
+  for (const v of others) {
+    const t = tile(v, false);
+    t.dataset.id = v.id;
+    t.addEventListener('click', () => onFocus?.(v.id));
+    minis.append(t);
+  }
+}
 
-  // ---------- 说话状态 ----------
-  setSpeaking(userId, speaking) {
-    const el = document.querySelector(`.member[data-user-id="${CSS.escape(userId)}"]`);
-    if (el) el.classList.toggle('speaking', speaking);
-  },
-
-  setMeter(userId, level) {
-    const el = document.querySelector(`.member[data-user-id="${CSS.escape(userId)}"] .meter i`);
-    if (el) el.style.width = `${Math.round(level * 100)}%`;
-  },
-
-  // ---------- 屏幕共享 ----------
-  _screenTiles: new Map(),
-
-  addScreenTile(userId, stream, username, { self = false } = {}) {
-    const grid = this.$('#screen-grid');
-    if (this._screenTiles.has(userId)) {
-      const old = this._screenTiles.get(userId);
-      if (old.video.srcObject === stream) return;
-    }
-    const tile = document.createElement('div');
-    tile.className = 'screen-tile';
-    tile.dataset.userId = userId;
-    const video = document.createElement('video');
+const videoCache = new Map(); // id -> HTMLVideoElement（复用避免闪烁）
+function tile(view, isMain) {
+  const wrap = document.createElement('div');
+  wrap.className = 'video-tile' + (isMain ? ' main' : '');
+  let video = videoCache.get(view.id);
+  if (!video) {
+    video = document.createElement('video');
     video.autoplay = true;
-    if (!self) video.muted = true; // 自己看的本地预览不用回声
-    video.srcObject = stream;
-    const label = document.createElement('div');
-    label.className = 'tile-label';
-    label.textContent = username + (self ? ' (你的屏幕)' : ' 的屏幕');
-    tile.append(video, label);
-    grid.appendChild(tile);
-    this._screenTiles.set(userId, { tile, video });
-    video.play().catch(() => {});
-  },
+    video.playsInline = true;
+    videoCache.set(view.id, video);
+  }
+  if (video.srcObject !== view.stream) video.srcObject = view.stream;
+  video.play().catch(() => { /* 自动播放被拦时用户点击后重试 */ });
+  wrap.append(video);
+  const tag = document.createElement('div');
+  tag.className = 'tile-tag';
+  tag.textContent = view.id === 'local'
+    ? '你正在共享 · ' + (view.username || '')
+    : (view.username || '') + ' 的屏幕';
+  wrap.append(tag);
+  return wrap;
+}
 
-  removeScreenTile(userId) {
-    const entry = this._screenTiles.get(userId);
-    if (entry) {
-      entry.tile.remove();
-      this._screenTiles.delete(userId);
-    }
-  },
+export function clearVideos() {
+  for (const v of videoCache.values()) { v.srcObject = null; v.remove(); }
+  videoCache.clear();
+}
 
-  // ---------- 聊天 ----------
-  addChat(msg) {
-    const box = this.$('#chat-messages');
-    const div = document.createElement('div');
-    div.className = 'chat-msg' + (msg.fromId === this.meId ? ' self' : '');
-    const time = new Date(msg.ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    div.innerHTML = `<span class="time">${time}</span><span class="who"></span>`;
-    const who = div.querySelector('.who');
-    who.textContent = msg.from;
-    div.appendChild(document.createTextNode(msg.text));
-    box.appendChild(div);
-    box.scrollTop = box.scrollHeight;
-  },
+// ── 弹窗 ──
+export function openModal(id) { $(id).hidden = false; }
+export function closeModal(id) { $(id).hidden = true; }
 
-  // ---------- 通用 ----------
-  toast(text, ms = 3000) {
-    const t = this.$('#toast');
-    t.textContent = text;
-    t.hidden = false;
-    clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => { t.hidden = true; }, ms);
-  },
-};
+// ── 帮助下拉 ──
+const menuHandlers = {};
+export function setMenuHandler(action, fn) { menuHandlers[action] = fn; }
+
+export function wireHelpDropdown() {
+  const wrap = document.querySelector('.dropdown-wrap');
+  const btn = $('#btn-help');
+  const menu = $('#menu-help');
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+  });
+  document.addEventListener('click', (e) => {
+    if (!wrap.contains(e.target)) menu.hidden = true;
+  });
+  menu.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    menu.hidden = true;
+    const fn = menuHandlers[b.dataset.action];
+    fn?.();
+  });
+}
