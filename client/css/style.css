@@ -365,3 +365,22 @@ input, select { font: inherit; color: var(--text); }
 }
 .tile-volume .vol-icon { font-size: 13px; }
 .tile-volume input[type="range"] { width: 90px; accent-color: var(--accent); cursor: pointer; }
+
+/* 远程连接失败恢复横幅 */
+.recover-banner {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 183, 77, 0.12);
+  border: 1px solid rgba(255, 183, 77, 0.45);
+  color: #ffd591;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.lobby-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}

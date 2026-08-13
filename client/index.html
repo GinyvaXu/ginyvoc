@@ -13,6 +13,7 @@
     <div class="lobby-card">
       <div class="logo">🖥️ GinyScreen</div>
       <p class="tagline">屏幕共享 · 一起看视频 / 电影 / 游戏</p>
+      <div id="lobby-recover-banner" class="recover-banner" hidden>⚠️ 上次连接的服务器不可用，请在「服务器设置」中修改地址，或返回本机开服。</div>
       <div class="field">
         <label>昵称</label>
         <input id="input-username" type="text" maxlength="16" placeholder="输入昵称" autocomplete="off" />
@@ -34,6 +35,9 @@
       <div class="btn-row">
         <button id="btn-create" class="btn primary">开房间</button>
         <button id="btn-join" class="btn">加入房间</button>
+      </div>
+      <div class="lobby-actions">
+        <button id="btn-server-settings-lobby" class="btn small">⚙️ 服务器设置</button>
       </div>
       <div id="lobby-error" class="error" hidden></div>
       <p class="hint">建议使用 Edge / Chrome。共享屏幕时可勾选「系统声音」，适合一起看视频。</p>

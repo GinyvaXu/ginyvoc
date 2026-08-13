@@ -35,6 +35,7 @@ async function boot() {
   wireErrorReport();
   showLobbyServer();
   const params = new URLSearchParams(location.search);
+  if (params.get('recover') === '1') ui.$('#lobby-recover-banner').hidden = false;
   const autoNick = params.get('nick') || '';
   if (autoNick) ui.$('#input-username').value = autoNick;
   if (params.get('autojoin') === '1' && autoNick) enterRoom('join');
@@ -79,6 +80,7 @@ function wireLobby() {
   });
   ui.$('#input-port').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterRoom('create'); });
   ui.$('#input-address').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterRoom('join'); });
+  ui.$('#btn-server-settings-lobby')?.addEventListener('click', openServerSettings);
   // 浏览器版没有端口/IP 直连能力：隐藏主机/加入选择，直接进当前服务器
   if (!window.gvDesktop?.setServerConfig) {
     ui.$('#mode-fields').hidden = true;

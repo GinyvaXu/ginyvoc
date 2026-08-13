@@ -61,6 +61,8 @@ let appUrl = '';
 let quitting = false;
 let serverPort = 3000;
 let pendingDisplayCapture = null; // { callback, audioRequested, sources }
+let remoteRecoveryShown = false;
+let localUrlForRecovery = '';
 
 // ── 服务器连接配置（本机开服 / 连接朋友的远程服务器）──
 let connCfg = { mode: 'local', address: '', port: 3000, nickname: '' };
@@ -149,25 +151,26 @@ async function bootstrap() {
     logger.work(`连接远程服务器: ${remoteOrigin}`);
   }
 
+  // 始终启动本地服务器：本机开服时它是房间服务器；远程模式下作为「恢复页」兜底（失败时跳回本地设置页）
+  try {
+    serverHandle = await startGinyScreenServer({
+      port: connCfg.port,   // 主机自选端口（默认 3000）
+      host: '::',           // 双栈监听：本机/局域网/ZeroTier 虚拟网/IPv6 均可访问
+      retryOnBusy: connCfg.mode === 'remote', // 本机开服端口必须严格；远程模式可自动换端口
+    });
+  } catch (err) {
+    logger.error('服务器启动失败:', err);
+    dialog.showErrorBox('GinyScreen', '服务器启动失败（端口可能被占用），请查看日志：\n' + (err?.message || String(err)));
+    app.quit();
+    return;
+  }
+  serverPort = serverHandle.port;
+  localUrlForRecovery = `http://127.0.0.1:${serverPort}`;
   if (connCfg.mode === 'remote') {
-    // 加入朋友房间：不需要在本机开服务器，直接加载对方地址
     appUrl = remoteOrigin;
-    logger.work(`远程模式：窗口加载 ${appUrl}`);
+    logger.work(`远程模式：窗口加载 ${appUrl}（本地兜底 ${localUrlForRecovery}）`);
   } else {
-    try {
-      serverHandle = await startGinyScreenServer({
-        port: connCfg.port,   // 主机自选端口（默认 3000）
-        host: '::',           // 双栈监听：本机/局域网/ZeroTier 虚拟网/IPv6 均可访问
-        retryOnBusy: false,   // 端口被占用直接报错，避免悄悄换端口导致好友连不上
-      });
-    } catch (err) {
-      logger.error('服务器启动失败:', err);
-      dialog.showErrorBox('GinyScreen', '服务器启动失败（端口可能被占用），请查看日志：\n' + (err?.message || String(err)));
-      app.quit();
-      return;
-    }
-    serverPort = serverHandle.port;
-    appUrl = `http://127.0.0.1:${serverPort}`;
+    appUrl = localUrlForRecovery;
     logger.work(`服务器已启动: ${appUrl}`);
   }
 
@@ -336,6 +339,24 @@ function createWindow() {
   mainWindow.webContents.on('render-process-gone', (_e, details) =>
     writeCrashReport('renderer-gone', new Error(JSON.stringify(details)))
   );
+  // 远程模式：加载失败 / 返回非 GinyScreen 页面（如 SakuraFrp 501 拦截页）时跳回本地设置页
+  if (connCfg.mode === 'remote' && remoteOrigin) {
+    remoteRecoveryShown = false;
+    const wc = mainWindow.webContents;
+    wc.on('did-fail-load', (_e, code, desc, failedUrl, isMainFrame) => {
+      if (isMainFrame && code !== -3 && failedUrl.startsWith(remoteOrigin)) {
+        showRemoteRecovery(`无法连接 ${failedUrl}（${desc || code}）`);
+      }
+    });
+    wc.on('did-finish-load', async () => {
+      try {
+        const u = wc.getURL();
+        if (!u.startsWith(remoteOrigin)) return; // 恢复页/本地页不检查
+        const isApp = await wc.executeJavaScript("!!(document.getElementById('screen-lobby')||document.getElementById('screen-room'))");
+        if (!isApp) showRemoteRecovery(`目标地址 ${u} 返回的不是 GinyScreen 界面（可能被网络拦截）`);
+      } catch { /* 页面异常时保持现状 */ }
+    });
+  }
   mainWindow.on('close', (e) => {
     if (!quitting) {
       e.preventDefault();
@@ -355,11 +376,20 @@ function createTray() {
   tray.setToolTip('GinyScreen');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '打开主界面', click: () => showMainWindow() },
+    { label: '返回服务器设置', click: () => { if (remoteOrigin) { remoteRecoveryShown = false; showRemoteRecovery('手动返回设置'); } } },
     { label: '复制访问地址', click: () => clipboard.writeText(remoteOrigin || getLocalUrls(serverPort)[0] || appUrl) },
     { type: 'separator' },
     { label: '退出', click: () => { quitting = true; shutdown(); } },
   ]));
   tray.on('double-click', () => showMainWindow());
+}
+
+function showRemoteRecovery(reason) {
+  if (remoteRecoveryShown || !mainWindow || mainWindow.isDestroyed()) return;
+  remoteRecoveryShown = true;
+  logger.work('远程加载失败，返回本地设置页: ' + reason);
+  const url = localUrlForRecovery + (localUrlForRecovery.includes('?') ? '&' : '?') + 'recover=1';
+  mainWindow.loadURL(url);
 }
 
 function showMainWindow() {
