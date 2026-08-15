@@ -1,0 +1,85 @@
+{
+  "name": "ginyscreen",
+  "version": "1.4.1",
+  "description": "GinyScreen - 一起看屏幕：屏幕共享(含系统声音) · 房间 · WebRTC P2P mesh",
+  "main": "desktop/main.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "electron": "node node_modules/electron/cli.js desktop/main.js",
+    "icon": "node scripts/gen-icon.mjs",
+    "dist": "node scripts/sync-version.mjs && node node_modules/electron-builder/cli.js --win",
+    "dist:debug": "node scripts/sync-version.mjs && node scripts/build-debug.mjs",
+    "dist:portable": "node scripts/sync-version.mjs && node node_modules/electron-builder/cli.js --win portable",
+    "dist:installer": "node scripts/sync-version.mjs && node node_modules/electron-builder/cli.js --win nsis",
+    "finalize": "node scripts/export-electron.mjs",
+    "archive": "node scripts/archive-release.mjs",
+    "certs": "node scripts/make-certs.js",
+    "test": "node scripts/smoke-test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3",
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.ginyscreen.app",
+    "productName": "GinyScreen",
+    "copyright": "Copyright (c) 2026 GinyScreen",
+    "asar": true,
+    "directories": {
+      "output": "build",
+      "buildResources": "assets"
+    },
+    "files": [
+      "server/**/*",
+      "client/**/*",
+      "desktop/**/*",
+      "assets/**/*",
+      "VERSION"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "GinyScreen-Portable-v${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "GinyScreen-Setup-v${version}.exe"
+    },
+    "extraResources": [
+      {
+        "from": "resources/gv-helper.exe",
+        "to": "gv-helper.exe"
+      },
+      {
+        "from": "resources/NAudio.Core.dll",
+        "to": "NAudio.Core.dll"
+      },
+      {
+        "from": "resources/NAudio.Wasapi.dll",
+        "to": "NAudio.Wasapi.dll"
+      },
+      {
+        "from": "resources/Radmin_VPN_2.0.4899.9.exe",
+        "to": "Radmin_VPN_2.0.4899.9.exe"
+      }
+    ]
+  }
+}
