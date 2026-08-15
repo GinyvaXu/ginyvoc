@@ -38,6 +38,7 @@
       </div>
       <div class="lobby-actions">
         <button id="btn-server-settings-lobby" class="btn small">⚙️ 服务器设置</button>
+        <button id="btn-radmin-lobby" class="btn small">🌐 Radmin 联机</button>
       </div>
       <div id="lobby-error" class="error" hidden></div>
       <p class="hint">建议使用 Edge / Chrome。共享屏幕时可勾选「系统声音」，适合一起看视频。</p>
@@ -52,10 +53,12 @@
       <span id="conn-status" class="conn-status ok">● 已连接</span>
       <div class="top-actions">
         <button id="btn-server-settings" class="btn small">服务器设置</button>
+        <button id="btn-radmin-room" class="btn small">🌐 联机</button>
         <div class="dropdown-wrap">
           <button id="btn-help" class="btn small">帮助 ▾</button>
           <div id="menu-help" class="dropdown" hidden>
             <button data-action="check-update">🔄 检查更新</button>
+            <button data-action="open-radmin">🌐 Radmin 联机</button>
             <button data-action="open-about">📻 关于 GinyScreen</button>
             <button data-action="quit-app">⏻ 退出 GinyScreen</button>
           </div>
@@ -67,6 +70,14 @@
       <aside class="sidebar">
         <div class="sidebar-title">成员 <span id="member-count" class="chip">0</span></div>
         <ul id="member-list" class="member-list"></ul>
+        <div class="voice-panel">
+          <div class="voice-title">🎙️ 语音 <span id="voice-hint" class="dim">(独立音量 · 防回音)</span></div>
+          <button id="btn-mic" class="btn block mic-btn">🎤 打开麦克风</button>
+          <label class="voice-gain">我的音量
+            <input id="mic-gain" type="range" min="0" max="150" value="100" title="调节别人听到你的音量" />
+          </label>
+          <ul id="voice-list" class="voice-list"></ul>
+        </div>
         <div class="sidebar-foot">
           <button id="btn-copy-link" class="btn block">🔗 复制邀请链接</button>
           <button id="btn-leave" class="btn block danger">🚪 离开房间</button>
@@ -100,9 +111,41 @@
       <label class="check"><input id="share-audio" type="checkbox" /> 同时共享系统声音</label>
       <span id="share-status" class="share-status"></span>
       <span class="spacer"></span>
-      <span class="dim hint">点击画面可聚焦 · 房间内谁都可以共享</span>
+      <span class="dim hint">点击画面可聚焦 · 主画面支持全屏 / 画中画 / 比例调节 · 房间内谁都可以共享</span>
     </footer>
   </section>
+
+
+  <!-- Radmin VPN 联机（内嵌，主推跨网络方案） -->
+  <div id="modal-radmin" class="modal" hidden>
+    <div class="modal-card radmin-card">
+      <h3>🌐 Radmin 联机（跨网络房间）</h3>
+      <p class="dim">Radmin VPN 免费虚拟局域网：所有成员装好后创建/加入同一网络，就能用 26.x 虚拟 IP 直连房间，无需公网端口。</p>
+      <p id="radmin-status" class="radmin-status dim">正在检测…</p>
+      <div class="field">
+        <label>网络名称（创建/加入用）</label>
+        <input id="radmin-name" type="text" placeholder="如 GinyRoom" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label>网络密码</label>
+        <input id="radmin-pwd" type="password" placeholder="8 位以上密码" autocomplete="off" />
+      </div>
+      <div class="field">
+        <p class="hint">操作流程：① 未安装先点「安装 Radmin VPN」（仅首次，会弹 UAC 允许）② 开房者点「创建网络」并记下名称/密码发给好友 ③ 好友点「加入网络」填入同一名称/密码 ④ 双方点「刷新状态」获得虚拟 IP（26.x.x.x）⑤ 在「服务器设置」中把地址填成 开房者IP:3000。</p>
+      </div>
+      <div class="modal-actions radmin-actions">
+        <button id="btn-radmin-install" class="btn">⬇️ 安装 Radmin VPN</button>
+        <button id="btn-radmin-create" class="btn primary">＋ 创建网络</button>
+        <button id="btn-radmin-join" class="btn">🔗 加入网络</button>
+        <button id="btn-radmin-refresh" class="btn">🔄 刷新状态</button>
+        <button id="btn-radmin-use-ip" class="btn">📋 填入我的IP:3000</button>
+      </div>
+      <p id="radmin-net-result" class="radmin-result dim" hidden></p>
+      <div class="modal-actions">
+        <button id="btn-radmin-cancel" class="btn">关闭</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 服务器设置 -->
   <div id="modal-server" class="modal" hidden>

@@ -17,6 +17,12 @@ contextBridge.exposeInMainWorld('gvDesktop', {
   onDisplaySourceList: (cb) => ipcRenderer.on('gv:display-source-list', (_e, list) => cb(list)),
   pickDisplaySource: (sourceId) => ipcRenderer.send('gv:pick-display-source', sourceId),
   cancelDisplaySource: () => ipcRenderer.send('gv:cancel-display-source'),
+  // 窗口声音方案A：停止共享时恢复被静音的其他应用
+  restoreWindowAudio: () => ipcRenderer.send('gv:restore-window-audio'),
+  // Radmin VPN 联机
+  radminStatus: () => ipcRenderer.invoke('gv:radmin-status'),
+  radminInstall: () => ipcRenderer.invoke('gv:radmin-install'),
+  radminNetwork: (mode, name, pwd) => ipcRenderer.invoke('gv:radmin-network', mode, name, pwd),
   // 更新进度/状态推送：cb({ stage })
   onUpdateProgress: (cb) => ipcRenderer.on('gv:update-progress', (_e, data) => cb(data)),
   // 启动时后台发现新版本：cb(result)

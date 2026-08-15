@@ -30,7 +30,7 @@ for (const dir of exeDirs) {
 }
 
 // 2) 源码快照：排除构建产物、依赖、归档目录
-const EXCLUDE = new Set(['.git', 'node_modules', 'build', 'dist', 'installer', 'logs', 'versions', 'release', 'temp']);
+const EXCLUDE = new Set(['.git', 'node_modules', 'build', 'dist', 'installer', 'logs', 'versions', 'release', 'temp', 'resources']);
 function copyFilter(s) {
   const rel = s.slice(root.length + 1);
   return !EXCLUDE.has(rel.split(/[\\/]/)[0]);

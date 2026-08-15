@@ -1,4 +1,4 @@
-// ui.js — DOM 工具 + 房间渲染（成员列表 / 舞台 / 弹窗 / toast）
+// ui.js — DOM 工具 + 房间渲染（成员列表 / 舞台 / 语音面板 / 弹窗 / toast）
 export const $ = (sel) => document.querySelector(sel);
 
 let toastTimer = null;
@@ -18,6 +18,7 @@ export function showScreen(name) {
 // ── 成员列表 ──
 export function renderMembers(members, meId) {
   const list = $('#member-list');
+  if (!list) return;
   $('#member-count').textContent = members.length;
   list.innerHTML = '';
   for (const m of members) {
@@ -34,6 +35,12 @@ export function renderMembers(members, meId) {
       const badge = document.createElement('span');
       badge.className = 'share-badge';
       badge.textContent = '共享中';
+      li.append(badge);
+    }
+    if (m.voice) {
+      const badge = document.createElement('span');
+      badge.className = 'voice-badge';
+      badge.textContent = '🎙️';
       li.append(badge);
     }
     list.append(li);
@@ -81,6 +88,23 @@ export function renderStage(views, focused) {
 }
 
 const videoCache = new Map(); // id -> HTMLVideoElement（复用避免闪烁）
+const DEFAULT_ASPECT = 'auto';
+
+export function applyTileAspect(video, wrap, mode) {
+  if (!video || !wrap) return;
+  const modes = ['auto', '169', 'original', 'stretch'];
+  wrap.classList.remove(...modes.map((m) => 'aspect-' + m));
+  wrap.classList.add('aspect-' + mode);
+  if (mode === 'stretch') video.style.objectFit = 'fill';
+  else if (mode === 'original') video.style.objectFit = 'none';
+  else video.style.objectFit = 'contain';
+  if (mode === '169') {
+    wrap.classList.add('ratio-fixed');
+  } else {
+    wrap.classList.remove('ratio-fixed');
+  }
+}
+
 function tile(view, isMain) {
   const wrap = document.createElement('div');
   wrap.className = 'video-tile' + (isMain ? ' main' : '');
@@ -94,6 +118,7 @@ function tile(view, isMain) {
   }
   if (video.srcObject !== view.stream) video.srcObject = view.stream;
   video.play().catch(() => { /* 自动播放被拦时用户点击后重试 */ });
+  applyTileAspect(video, wrap, DEFAULT_ASPECT);
   wrap.append(video);
 
   const tag = document.createElement('div');
@@ -102,6 +127,58 @@ function tile(view, isMain) {
     ? '你正在共享 · ' + (view.username || '')
     : (view.username || '') + ' 的屏幕';
   wrap.append(tag);
+
+  if (isMain) {
+    // 主画面工具栏：画面比例 / 画中画 / 全屏（仅观看端显示，本地预览只给画质）
+    const bar = document.createElement('div');
+    bar.className = 'tile-toolbar';
+    const aspect = document.createElement('select');
+    aspect.className = 'aspect-select';
+    aspect.title = '画面比例';
+    aspect.innerHTML =
+      '<option value="auto" selected>画面：自适应</option>' +
+      '<option value="169">画面：16:9</option>' +
+      '<option value="original">画面：原始</option>' +
+      '<option value="stretch">画面：拉伸</option>';
+    aspect.addEventListener('click', (e) => e.stopPropagation());
+    aspect.addEventListener('change', () => applyTileAspect(video, wrap, aspect.value));
+    bar.append(aspect);
+
+    if (view.id !== 'local') {
+      const pipBtn = document.createElement('button');
+      pipBtn.type = 'button';
+      pipBtn.className = 'tile-btn';
+      pipBtn.textContent = '⧉ 画中画';
+      pipBtn.title = '弹出为系统小窗（可置顶在其他窗口上）';
+      pipBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          if (document.pictureInPictureElement) await document.exitPictureInPicture();
+          else await video.requestPictureInPicture();
+        } catch (err) {
+          toast('画中画不可用：' + (err?.message || err));
+        }
+      });
+      bar.append(pipBtn);
+
+      const fsBtn = document.createElement('button');
+      fsBtn.type = 'button';
+      fsBtn.className = 'tile-btn';
+      fsBtn.textContent = '⛶ 全屏';
+      fsBtn.title = '全屏观看（Esc 退出）';
+      fsBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          if (document.fullscreenElement) await document.exitFullscreen();
+          else await wrap.requestFullscreen();
+        } catch (err) {
+          toast('全屏不可用：' + (err?.message || err));
+        }
+      });
+      bar.append(fsBtn);
+    }
+    wrap.append(bar);
+  }
 
   // 音量滑块：共享人与观看者各自独立调节
   const vol = document.createElement('div');
@@ -127,6 +204,41 @@ export function clearVideos() {
   videoCache.clear();
 }
 
+// ── 语音面板 ──
+// items: [{ id, username, isMe, micOn, talking, hasStream }]
+let onVoiceVolume = null;
+export function setVoiceVolumeHandler(fn) { onVoiceVolume = fn; }
+
+export function renderVoice(items) {
+  const list = $('#voice-list');
+  if (!list) return;
+  list.innerHTML = '';
+  for (const it of items) {
+    const li = document.createElement('li');
+    li.dataset.id = it.id;
+    li.className = 'voice-item' + (it.isMe ? ' me' : '') + (it.talking ? ' talking' : '');
+    const dot = document.createElement('span');
+    dot.className = 'voice-dot ' + (it.micOn ? 'on' : 'off');
+    const name = document.createElement('span');
+    name.className = 'voice-name';
+    name.textContent = it.username + (it.isMe ? '（我）' : '') + (it.micOn ? '' : ' · 静音');
+    li.append(dot, name);
+    if (!it.isMe && it.hasStream && it.micOn) {
+      const vol = document.createElement('input');
+      vol.type = 'range';
+      vol.min = '0';
+      vol.max = '150';
+      vol.value = String(Math.round((it.volume ?? 1) * 100));
+      vol.className = 'voice-vol';
+      vol.title = it.username + ' 的声音大小';
+      vol.addEventListener('input', () => onVoiceVolume?.(it.id, Number(vol.value) / 100));
+      vol.addEventListener('click', (e) => e.stopPropagation());
+      li.append(vol);
+    }
+    list.append(li);
+  }
+}
+
 // ── 弹窗 ──
 export function openModal(id) { $(id).hidden = false; }
 export function closeModal(id) { $(id).hidden = true; }
@@ -140,6 +252,7 @@ let onPickSource = null;
 export function setSourcePickHandler(fn) { onPickSource = fn; }
 export function renderSourcePicker(list) {
   const grid = $('#source-picker-grid');
+  if (!grid) return;
   grid.innerHTML = '';
   for (const s of list) {
     const card = document.createElement('button');

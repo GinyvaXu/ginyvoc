@@ -1,6 +1,6 @@
-// rooms.js — 房间 / 成员 / 共享状态管理（内存态，mesh 信令）
-// GinyScreen：专注屏幕共享，无语音频道/聊天；每人一个 share 标志，谁都能共享
-// v1.3.0 起取消房间号：一个服务器 = 一个房间（默认 id "main"），好友直接连服务器地址即可
+// rooms.js — 房间 / 成员 / 共享 / 语音状态管理（内存态，mesh 信令）
+// GinyScreen：一个服务器 = 一个房间（默认 id "main"），好友直接连服务器地址即可
+// v1.4.0 起每人有 share（屏幕共享）与 voice（麦克风）两个状态
 const MAX_USERS_PER_ROOM = 8;
 
 export class RoomManager {
@@ -21,7 +21,7 @@ export class RoomManager {
     const room = this.getDefaultRoom();
     if (room.users.has(socketId)) return { error: '已在该房间中' };
     if (room.users.size >= MAX_USERS_PER_ROOM) return { error: `房间已满（最多 ${MAX_USERS_PER_ROOM} 人）` };
-    const user = { id: socketId, username: String(username || '观众').slice(0, 16), share: false };
+    const user = { id: socketId, username: String(username || '观众').slice(0, 16), share: false, voice: false };
     room.users.set(socketId, user);
     return { room, user };
   }
@@ -29,6 +29,12 @@ export class RoomManager {
   setShare(room, socketId, share) {
     const user = room.users.get(socketId);
     if (user) user.share = !!share;
+    return user;
+  }
+
+  setVoice(room, socketId, voice) {
+    const user = room.users.get(socketId);
+    if (user) user.voice = !!voice;
     return user;
   }
 

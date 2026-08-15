@@ -1,5 +1,5 @@
 // signaling.js — Socket.IO 信令层
-// 职责: 房间/成员/共享状态管理 + 转发 WebRTC 信令（SDP/ICE），媒体面走 P2P 不经过服务器
+// 职责: 房间/成员/共享/语音状态管理 + 转发 WebRTC 信令（SDP/ICE），媒体面走 P2P 不经过服务器
 import { logger } from './logger.js';
 
 export function setupSignaling(io, rooms) {
@@ -26,8 +26,8 @@ export function setupSignaling(io, rooms) {
       socket.join(res.room.id);
       socket.data.roomId = res.room.id;
       const me = res.room.users.get(socket.id);
-      // 通知房内已有成员：新成员加入（正在共享的人会向他发起 sendonly offer）
-      socket.to(res.room.id).emit('member:joined', { user: { id: socket.id, username: me.username, share: false } });
+      // 通知房内已有成员：新成员加入（正在共享/开着麦的人会向他发起连接）
+      socket.to(res.room.id).emit('member:joined', { user: { id: socket.id, username: me.username, share: false, voice: false } });
       io.to(res.room.id).emit('room:state', rooms.serialize(res.room));
       logger.work(`room:join ${res.room.id} user=${username} by ${socket.id} (共 ${res.room.users.size} 人)`);
       ack?.({ roomId: res.room.id, roomState: rooms.serialize(res.room) });
@@ -50,9 +50,21 @@ export function setupSignaling(io, rooms) {
       ack?.({ ok: true });
     });
 
-    // 转发 WebRTC 信令（offer / answer / ice）
+    // 语音状态切换：广播给房内其他成员（媒体面走 voice 通道的 P2P 连接）
+    socket.on('voice:update', ({ voice }, ack) => {
+      const room = rooms.rooms.get(socket.data.roomId);
+      if (room) {
+        const user = rooms.setVoice(room, socket.id, voice);
+        socket.to(room.id).emit('voice:update', { id: socket.id, voice: user.voice });
+        io.to(room.id).emit('room:state', rooms.serialize(room));
+        logger.debug(`voice:update room=${room.id} user=${user?.username} voice=${user?.voice}`);
+      }
+      ack?.({ ok: true });
+    });
+
+    // 转发 WebRTC 信令（offer / answer / ice，screen 与 voice 通道）
     socket.on('signal', ({ to, data }) => {
-      logger.debug(`signal relay ${socket.id} -> ${to} (${data?.sdp?.type || 'ice'})`);
+      logger.debug(`signal relay ${socket.id} -> ${to} (${data?.sdp?.type || data?.type || 'ice'}${data?.channel ? '/' + data.channel : ''})`);
       io.to(to).emit('signal', { from: socket.id, data });
     });
 

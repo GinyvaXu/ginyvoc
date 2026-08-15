@@ -64,6 +64,20 @@ B.emit('signal', { to: A.id, data: { type: 'ice', candidate: { candidate: 'candi
 const got3 = await iceA;
 assert('信令转发 B→A(ice)', got3.from === B.id && got3.data.type === 'ice');
 
+// 语音状态同步
+const voiceUpdateB = new Promise((resolve) => B.once('voice:update', resolve));
+const stateAfterVoice = new Promise((resolve) => B.once('room:state', resolve));
+await emitAck(A, 'voice:update', { voice: true });
+const vu = await voiceUpdateB;
+assert('B 收到 voice:update(开麦)', vu.id === A.id && vu.voice === true);
+const stV = await stateAfterVoice;
+const aliceV = stV.users.find((u) => u.username === 'Alice');
+assert('room:state 同步语音标志', aliceV?.voice === true);
+const signalVoiceB = new Promise((resolve) => B.once('signal', resolve));
+A.emit('signal', { to: B.id, data: { type: 'offer', channel: 'voice', sdp: 'FAKE_VOICE_OFFER' } });
+const gv = await signalVoiceB;
+assert('信令转发 A→B(voice offer)', gv.from === A.id && gv.data.channel === 'voice' && gv.data.type === 'offer');
+
 const memberLeftA = new Promise((resolve) => A.once('member:left', resolve));
 await emitAck(B, 'room:leave');
 const ml = await memberLeftA;

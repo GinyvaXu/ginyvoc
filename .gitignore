@@ -19,3 +19,6 @@ Thumbs.db
 installer/*.exe
 
 versions/backups/
+
+# 本地构建依赖（Radmin 安装包 / gv-helper.exe / NAudio DLL，不入库）
+resources/

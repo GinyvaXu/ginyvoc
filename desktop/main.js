@@ -2,9 +2,9 @@
 // 职责：内嵌启动信令服务器 → 打开主窗口；系统托盘驻留；日志落盘（Debug 版）
 import { app, BrowserWindow, Tray, Menu, nativeImage, clipboard, session, dialog, ipcMain, shell, desktopCapturer } from 'electron';
 import { dirname, join } from 'node:path';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -61,6 +61,7 @@ let appUrl = '';
 let quitting = false;
 let serverPort = 3000;
 let pendingDisplayCapture = null; // { callback, audioRequested, sources }
+let activeWindowAudioSnapshot = null; // 窗口声音方案A：被静音应用的快照路径
 let remoteRecoveryShown = false;
 let localUrlForRecovery = '';
 
@@ -151,6 +152,9 @@ async function bootstrap() {
     logger.work(`连接远程服务器: ${remoteOrigin}`);
   }
 
+  // 语音/共享音频播放需要 WebAudio，桌面版放开自动播放限制
+  app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
   // 始终启动本地服务器：本机开服时它是房间服务器；远程模式下作为「恢复页」兜底（失败时跳回本地设置页）
   try {
     serverHandle = await startGinyScreenServer({
@@ -197,6 +201,12 @@ async function bootstrap() {
 
   wireDisplayCapture();
 
+  // 自动更新启动校验：上次安装是否已生效（参考诺丁汉 updater 的 boot marker）
+  try {
+    const { verifyUpdateMarker } = await import('./updater.js');
+    verifyUpdateMarker(app.getVersion(), logger);
+  } catch { /* 校验失败不影响启动 */ }
+
   createWindow();
   createTray();
   wireUpdater();
@@ -235,16 +245,45 @@ function wireDisplayCapture() {
     }
   });
 
-  ipcMain.on('gv:pick-display-source', (_e, sourceId) => {
+  ipcMain.on('gv:pick-display-source', async (_e, sourceId) => {
     const pending = pendingDisplayCapture;
     pendingDisplayCapture = null;
     if (!pending) return;
     const source = pending.sources.find((src) => src.id === sourceId);
     if (!source) { pending.callback(null); return; }
+    // 窗口声音方案A：共享「窗口」并勾选系统声音时，静音其它应用（含本机语音回放），
+    // 让回环采集只包含该窗口的声音，也避免他人声音/杂音被当作共享音频传回。
+    if (pending.audioRequested && String(source.id).startsWith('window:')) {
+      try {
+        const pid = await windowPidFromSource(source);
+        if (pid) {
+          activeWindowAudioSnapshot = join(app.getPath('temp'), `gv-share-audio-${Date.now()}.tsv`);
+          const r = await runHelper(['audio', 'mute-others', String(pid), activeWindowAudioSnapshot]);
+          logger.work('窗口声音共享：已静音其它应用 → ' + (r.ok ? r.out : (r.err || '失败')));
+        }
+      } catch (err) {
+        logger.error('静音其它应用失败（不影响共享）:', err);
+        activeWindowAudioSnapshot = null;
+      }
+    }
     pending.callback({
       video: source,
       audio: pending.audioRequested ? 'loopback' : undefined,
     });
+  });
+
+  // 停止共享时恢复被静音的其他应用
+  ipcMain.on('gv:restore-window-audio', async () => {
+    if (!activeWindowAudioSnapshot) return;
+    const snap = activeWindowAudioSnapshot;
+    activeWindowAudioSnapshot = null;
+    try {
+      const r = await runHelper(['audio', 'restore', snap]);
+      logger.work('恢复音频会话 → ' + (r.ok ? r.out : (r.err || '失败')));
+    } catch (err) {
+      logger.error('恢复音频失败:', err);
+    }
+    try { rmSync(snap, { force: true }); } catch { /* 忽略 */ }
   });
 
   ipcMain.on('gv:cancel-display-source', () => {
@@ -458,6 +497,37 @@ function wireUpdater() {
     }, 500); // 切换服务器/端口需重启生效
     return { ok: true, restarting: true };
   });
+  // ── Radmin VPN 联机（内嵌）──
+  ipcMain.handle('gv:radmin-status', async () => {
+    try {
+      const installed = await isRadminInstalled();
+      const r = await runHelper(['radmin', 'describe']);
+      const running = r.ok && /status=running/.test(r.out);
+      const ipR = await runHelper(['radmin', 'ip']);
+      const ip = ipR.ok ? ((ipR.out.match(/ip=([^\s]+)/) || [])[1] || '') : '';
+      return { ok: true, installed, running, ip };
+    } catch (err) {
+      return { ok: false, error: String(err?.message || err) };
+    }
+  });
+  ipcMain.handle('gv:radmin-install', async () => {
+    const inst = radminInstallerPath();
+    if (!existsSync(inst)) return { ok: false, error: '安装包缺失：resources/Radmin_VPN_2.0.4899.9.exe' };
+    try {
+      // Inno Setup 静默参数 + 提升权限（UAC 由系统弹出）
+      const ps = `Start-Process -FilePath '${inst}' -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-' -Verb RunAs`;
+      const child = spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], { windowsHide: true, detached: true, stdio: 'ignore' });
+      child.unref();
+      return { ok: true, elevated: true };
+    } catch (err) {
+      return { ok: false, error: String(err?.message || err) };
+    }
+  });
+  ipcMain.handle('gv:radmin-network', async (_e, mode, name, pwd) => {
+    if (!['create', 'join'].includes(mode)) return { ok: false, error: 'mode 无效' };
+    const r = await runHelper(['radmin', mode, String(name || ''), String(pwd || '')], 60_000);
+    return r.ok ? { ok: true, output: r.out } : { ok: false, error: r.out || r.err || '操作失败，请查看日志' };
+  });
   // 界面内退出（帮助 → 退出 GinyScreen）
   ipcMain.on('gv:quit', () => { quitting = true; shutdown(); });
 }
@@ -473,6 +543,67 @@ async function autoCheckUpdate() {
   } catch { /* 后台检查失败静默处理 */ }
 }
 
+// ── 系统助手 gv-helper + Radmin 检测 ──
+function helperPath() {
+  return app.isPackaged ? join(process.resourcesPath, 'gv-helper.exe') : join(__dirname, '..', 'resources', 'gv-helper.exe');
+}
+function radminInstallerPath() {
+  return app.isPackaged ? join(process.resourcesPath, 'Radmin_VPN_2.0.4899.9.exe') : join(__dirname, '..', 'resources', 'Radmin_VPN_2.0.4899.9.exe');
+}
+
+function runHelper(args, timeoutMs = 30_000) {
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn(helperPath(), args, { windowsHide: true });
+    } catch (err) {
+      resolve({ ok: false, code: -1, out: '', err: String(err) });
+      return;
+    }
+    let out = '';
+    let err = '';
+    const timer = setTimeout(() => { try { child.kill(); } catch { /* 忽略 */ } }, timeoutMs);
+    child.stdout.on('data', (d) => { out += d; });
+    child.stderr.on('data', (d) => { err += d; });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      resolve({ ok: code === 0, code, out: out.trim(), err: err.trim() });
+    });
+    child.on('error', (e) => {
+      clearTimeout(timer);
+      resolve({ ok: false, code: -1, out: '', err: String(e) });
+    });
+  });
+}
+
+// 由窗口源 id（window:<hwnd>:0）反查进程 PID
+async function windowPidFromSource(source) {
+  const m = String(source.id).match(/^window:(\d+)/);
+  if (!m) return null;
+  const r = await runHelper(['win', 'pid', m[1]]);
+  const pid = (r.out.match(/pid=(\d+)/) || [])[1];
+  return pid ? Number(pid) : null;
+}
+
+function isRadminInstalled() {
+  try {
+    const r = spawnSync('reg', [
+      'query',
+      'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+      '/s', '/f', 'Radmin', '/d',
+    ], { encoding: 'utf8', windowsHide: true, timeout: 8000 });
+    if (r.status === 0 && r.stdout) return true;
+    const r2 = spawnSync('reg', [
+      'query',
+      'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+      '/s', '/f', 'Radmin', '/d',
+    ], { encoding: 'utf8', windowsHide: true, timeout: 8000 });
+    return r2.status === 0 && !!r2.stdout;
+  } catch {
+    return false;
+  }
+}
+
 // 退出：必须先 app.quit()。内嵌服务器上挂着本应用自己的 Socket.IO 长连接，
 // 若先 await server.close() 会永远等不到回调（连接不释放）导致“退不出去”。
 function shutdown() {
@@ -485,4 +616,12 @@ app.on('window-all-closed', () => { /* 驻留托盘，不退出 */ });
 app.on('before-quit', () => { quitting = true; });
 app.on('will-quit', () => {
   try { serverHandle?.server?.close(); } catch { /* 兜底关闭 */ }
+  if (activeWindowAudioSnapshot) {
+    try {
+      const snap = activeWindowAudioSnapshot;
+      activeWindowAudioSnapshot = null;
+      const r = spawnSync(helperPath(), ['audio', 'restore', snap], { windowsHide: true, timeout: 10000 });
+      logger?.work?.('退出前恢复音频 → ' + (r.status === 0 ? r.stdout?.toString().trim() : '失败'));
+    } catch { /* 忽略 */ }
+  }
 });
