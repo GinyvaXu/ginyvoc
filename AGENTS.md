@@ -54,9 +54,11 @@ npm run archive         # 发布归档：产物/源码快照到 versions/vX.Y.Z/
 - 局域网/公网需 HTTPS 与 TURN，见 README「局域网使用」「公网使用」
 
 ## 当前状态
-- 版本：v1.3.0（取消房间号：单服务器单房间；首页直接填 IP:端口 加入，主机自选端口默认 3000；保存配置后自动重启进入）
+- 版本：v1.3.2（取消房间号：单服务器单房间；首页直接填 IP:端口 加入，主机自选端口默认 3000；保存配置后自动重启进入；v1.3.2 远程连接失败自动恢复——501 拦截页/证书错误自动跳回本地设置页，托盘与首页新增「服务器设置」逃生入口）
 - 分支：main（稳定）/ develop（日常开发）
 - 远程：https://github.com/GinyvaXu/GinyScreen（公开，自动更新依赖公开访问 update.json 与 Releases 资产）
 - 自动更新：桌面安装版内置 updater.js（多源清单 + NSIS 静默升级），清单为根目录 update.json
 - 构建产物一律英文命名（GinyScreen-Debug/Portable/Setup-vX.Y.Z.exe）；目录不含中文
 - 待办与路线图见 source/requirements.md 与 docs/gap-analysis.md
+
+- 组网方案：用户选定 **ZeroTier** 为主（免费 1 网络 / 25 设备，UDP 9993 P2P，完整教程见 docs/fri-network.md 1.3）；蒲公英/米西为备选；SakuraFrp 隧道必须开启「自动 HTTPS」
