@@ -581,7 +581,7 @@ function wireSourcePicker() {
 
 // ═══════════ Radmin VPN 联机（内嵌）═══════════
 function wireRadmin() {
-  for (const id of ['btn-radmin-lobby', 'btn-radmin-room']) {
+  for (const id of ['#btn-radmin-lobby', '#btn-radmin-room']) {
     ui.$(id)?.addEventListener('click', openRadminModal);
   }
   ui.$('#btn-radmin-cancel').addEventListener('click', () => { ui.$('#modal-radmin').hidden = true; });
