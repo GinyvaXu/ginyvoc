@@ -1,5 +1,5 @@
 {
-  "url": "https://github.com/GinyvaXu/GinyScreen/releases/download/v1.4.1/GinyScreen-Setup-v1.4.1.exe",
-  "notes": "# v1.4.1\n\n- 修复：首页「Radmin 联机」/ 房间内「联机」按钮无响应（事件绑定选择器漏写 # 前缀，根因修复）\n- 自动更新：v1.4.0 用户可通过更新链路升级到 v1.4.1",
-  "version": "1.4.1"
+  "url": "https://github.com/GinyvaXu/GinyScreen/releases/download/v1.5.0/GinyScreen-Setup-v1.5.0.exe",
+  "notes": "# v1.5.0\n\n## 新增\n- **房间聊天**：侧边栏聊天面板，消息服务器广播 + 保留最近 100 条历史，新成员进入即可看到\n- **切换服务器/端口免重启**：保存配置立即热生效（主窗口固定加载本地页面、远程模式 socket 直连远程信令），不再退出重开软件\n\n## 修复\n- **Radmin 联机创建/加入网络报错乱码**（gv-helper 中文输出编码不匹配，已改 UTF-8 + GBK 回退）\n- **全屏观看无效**（Electron 未放行 fullscreen 权限，已放行）\n- 语音关麦时残留的 WebRTC 入站连接（已释放）\n\n## 完善\n- 自动更新全链路：安装版启动时后台发现新版本自动弹出提示、展示下载进度；多源镜像（国内 4 代理）下载 + PE 头/体积校验 + 静默安装 + 启动校验",
+  "version": "1.5.0"
 }
