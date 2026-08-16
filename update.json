@@ -1,5 +1,5 @@
 {
-  "url": "https://github.com/GinyvaXu/GinyScreen/releases/download/v1.5.0/GinyScreen-Setup-v1.5.0.exe",
-  "notes": "# v1.5.0\n\n## 新增\n- **房间聊天**：侧边栏聊天面板，消息服务器广播 + 保留最近 100 条历史，新成员进入即可看到\n- **切换服务器/端口免重启**：保存配置立即热生效（主窗口固定加载本地页面、远程模式 socket 直连远程信令），不再退出重开软件\n\n## 修复\n- **Radmin 联机创建/加入网络报错乱码**（gv-helper 中文输出编码不匹配，已改 UTF-8 + GBK 回退）\n- **全屏观看无效**（Electron 未放行 fullscreen 权限，已放行）\n- 语音关麦时残留的 WebRTC 入站连接（已释放）\n\n## 完善\n- 自动更新全链路：安装版启动时后台发现新版本自动弹出提示、展示下载进度；多源镜像（国内 4 代理）下载 + PE 头/体积校验 + 静默安装 + 启动校验",
-  "version": "1.5.0"
+  "url": "https://github.com/GinyvaXu/GinyScreen/releases/download/v1.5.1/GinyScreen-Setup-v1.5.1.exe",
+  "notes": "# v1.5.1\n\n## 修复\n- **Radmin 联机「创建/加入网络」报「Radmin VPN 未运行」**：已装但未运行时不自动启动；已修复为自动启动 Radmin VPN，并清理 Qt 插件路径环境变量污染（PyInstaller 残留 QT_PLUGIN_PATH 会导致 Qt 平台插件初始化失败）\n- **新版 Radmin VPN 2.x 界面无法自动点击**：2.x 为 Qt 托盘程序（UIA 控件树为空），改为自动启动后给出明确指引（托盘右键 → 网络 → 创建/加入网络），完成后「刷新状态」获取虚拟 IP\n\n> v1.5.0 之前的用户可通过自动更新升级，或到 Releases 下载安装版。",
+  "version": "1.5.1"
 }
